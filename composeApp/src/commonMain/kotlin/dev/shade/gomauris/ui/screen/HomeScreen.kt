@@ -14,7 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import cafe.adriel.voyager.core.screen.Screen
-import cafe.adriel.voyager.navigator.CurrentScreen
+import cafe.adriel.voyager.navigator.tab.CurrentTab
 import cafe.adriel.voyager.navigator.tab.TabNavigator
 import dev.shade.gomauris.ui.components.BottomNavigation
 import dev.shade.gomauris.ui.screen.tabs.ActivityTab
@@ -48,7 +48,7 @@ class HomeScreen : Screen {
                         .fillMaxSize()
                         .padding(innerPadding)
                 ) {
-                    CurrentScreen()
+                    CurrentTab()
                 }
             }
         }
