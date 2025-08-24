@@ -32,7 +32,7 @@ class HomeScreen : Screen {
         var state by remember { mutableIntStateOf(0) }
         val tabs = listOf(HomeTab, ActivityTab, HistoryTab)
 
-        TabNavigator(HomeTab) { tabNavigator ->
+        TabNavigator(ActivityTab) { tabNavigator ->
             Scaffold(
                 containerColor = Color.Black,
                 bottomBar = {
