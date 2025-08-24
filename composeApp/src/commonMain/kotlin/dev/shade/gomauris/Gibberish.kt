@@ -174,7 +174,6 @@ fun App(
                     ClickResult.Consume
                 },
                 iconImage = image(rememberTintedVectorPainter(Icons.Filled.LocationOn, Color.Blue)),
-                textField = const("Start"),
                 textFont = const(listOf("Noto Sans Regular")),
                 textColor = const(MaterialTheme.colorScheme.onBackground),
                 textOffset = offset(0.em, 0.6.em),
@@ -199,7 +198,6 @@ fun App(
                         Color.Blue
                     )
                 ),
-                textField = const("End"),
                 textFont = const(listOf("Noto Sans Regular")),
                 textColor = const(MaterialTheme.colorScheme.onBackground),
                 textOffset = offset(0.em, 0.6.em),
@@ -508,25 +506,31 @@ private val httpClient = HttpClient(CIO) {
 
 suspend fun fetchRouteFromOSRM(start: Position, end: Position): List<Position> =
     withContext(Dispatchers.IO) {
-        val url =
-            "https://router.project-osrm.org/route/v1/driving/${start.longitude},${start.latitude};${end.longitude},${end.latitude}" +
-                    "?overview=full&geometries=geojson"
+        try {
+            val url =
+                "https://router.project-osrm.org/route/v1/driving/${start.longitude},${start.latitude};${end.longitude},${end.latitude}" +
+                        "?overview=full&geometries=geojson"
 
-        val responseText: String = httpClient.get(url).bodyAsText()
+            val responseText: String = httpClient.get(url).bodyAsText()
+            val json = Json.parseToJsonElement(responseText).jsonObject
+            val routes = json["routes"]!!.jsonArray
 
-        val json = Json.parseToJsonElement(responseText).jsonObject
-        val routes = json["routes"]!!.jsonArray
-        if (routes.isEmpty()) return@withContext emptyList()
+            if (routes.isEmpty()) return@withContext emptyList()
 
-        val coordinatesJson = routes[0].jsonObject["geometry"]!!
-            .jsonObject["coordinates"]!!.jsonArray
+            val coordinatesJson = routes[0].jsonObject["geometry"]!!
+                .jsonObject["coordinates"]!!.jsonArray
 
-        coordinatesJson.map { coordArray ->
-            val coord = coordArray.jsonArray
-            Position(
-                latitude = coord[1].jsonPrimitive.double,
-                longitude = coord[0].jsonPrimitive.double
-            )
+            coordinatesJson.map { coordArray ->
+                val coord = coordArray.jsonArray
+                Position(
+                    latitude = coord[1].jsonPrimitive.double,
+                    longitude = coord[0].jsonPrimitive.double
+                )
+            }
+        } catch (e: Exception) {
+            println("Error fetching route: ${e.message}")
+            e.printStackTrace()
+            emptyList()
         }
     }
 
