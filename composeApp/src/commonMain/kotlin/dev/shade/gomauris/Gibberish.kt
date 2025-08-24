@@ -1,5 +1,6 @@
 package dev.shade.gomauris
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -7,11 +8,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
@@ -31,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonColors
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
@@ -203,58 +207,91 @@ fun App(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchBottomSheet(
+    onDismiss: () -> Unit,
     onPlaceSelected: (PhotonPlace) -> Unit
 ) {
-    Column {
-        Row(
-            modifier = Modifier.wrapContentHeight()
-                .padding(PaddingValues(20.dp, 10.dp, 20.dp, 10.dp))
-        ) {
-            Text(
-                text = "Where to?",
-                color = Color.Black,
-                fontFamily = RobotoFontFamily,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = false // Allow partial expansion
+    )
+    var query by remember { mutableStateOf("") }
+    var results by remember { mutableStateOf<List<PhotonPlace>>(emptyList()) }
+    val scope = rememberCoroutineScope()
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        modifier = Modifier.fillMaxHeight(),
+        shape = RoundedCornerShape(
+            topStart = 8.dp,
+            topEnd = 8.dp
+        ),
+        containerColor = Color.White,
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(10.dp)
+                    .width(32.dp)
+                    .height(3.dp)
+                    .background(
+                        color = iconColor.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(2.dp)
+                    )
             )
         }
+    ) {
+        Column() {
 
-        Row(
-            modifier = Modifier.wrapContentHeight()
-                .padding(PaddingValues(20.dp, 0.dp, 20.dp, 5.dp))
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            FormTextField(
-                value = "",
-                onValueChange = { },
-                label = "Enter Location",
-                icon = Icons.Outlined.LocationOn,
-                modifier = Modifier.height(40.dp).fillMaxWidth()
-            )
-        }
-
-        Row(
-            modifier = Modifier.weight(1f)
-                .padding(PaddingValues(20.dp, 0.dp, 20.dp, 5.dp))
-        ) {
-            LazyColumn(
-                modifier = Modifier.weight(1f)
+            Row(
+                modifier = Modifier.wrapContentHeight()
+                    .padding(PaddingValues(20.dp, 10.dp, 20.dp, 10.dp))
             ) {
-                items(15) { place ->
-                    LocationItem()
+                Text(
+                    text = "Where to?",
+                    color = Color.Black,
+                    fontFamily = RobotoFontFamily,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                )
+            }
+
+            Row(
+                modifier = Modifier.wrapContentHeight()
+                    .padding(PaddingValues(20.dp, 0.dp, 20.dp, 5.dp))
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                FormTextField(
+                    value = "",
+                    onValueChange = { },
+                    label = "Enter Location",
+                    icon = Icons.Outlined.LocationOn,
+                    modifier = Modifier.height(40.dp).fillMaxWidth()
+                )
+            }
+
+            Row(
+                modifier = Modifier.weight(1f)
+                    .padding(PaddingValues(20.dp, 0.dp, 20.dp, 5.dp))
+            ) {
+                LazyColumn(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    items(15) { place ->
+                        LocationItem()
+                    }
                 }
             }
+
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapWithSearchSheet() {
     GoMaurisTheme {
+        var showSheet by remember { mutableStateOf(true) }
         var destination by remember {
             mutableStateOf(
                 Position(
@@ -265,73 +302,46 @@ fun MapWithSearchSheet() {
         }
         val source = Position(latitude = -20.24444, longitude = 57.55417)
         var routeCoordinates by remember { mutableStateOf<List<Position>>(emptyList()) }
-        var isLoadingRoute by remember { mutableStateOf(false) }
-        var routeError by remember { mutableStateOf<String?>(null) }
-        val sheetState = rememberModalBottomSheetState(
-            skipPartiallyExpanded = false
-        )
-        val scaffoldState = rememberBottomSheetScaffoldState(sheetState)
-        val scope = rememberCoroutineScope()
 
         LaunchedEffect(destination) {
-            isLoadingRoute = true
-            routeError = null
-
-            try {
-                val newRoute = fetchRouteFromOSRM(source, destination)
-                routeCoordinates = newRoute
-            } catch (e: Exception) {
-                routeError = e.message
-                // Keep previous route or set to empty
-                // routeCoordinates = emptyList() // Only if you want to clear on error
-            } finally {
-                isLoadingRoute = false
-            }
+            routeCoordinates = fetchRouteFromOSRM(source, destination)
         }
 
-        BottomSheetScaffold(
-            scaffoldState = scaffoldState,
-            sheetPeekHeight = 300.dp,
-            sheetShape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp),
-            sheetContainerColor = Color.White,
-            sheetContent = {
+        Box(modifier = Modifier.fillMaxSize()) {
+            App(routeCoordinates, source, destination)
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                contentAlignment = Alignment.TopStart
+            ) {
+                IconButton(
+                    onClick = { showSheet = true },
+                    colors = IconButtonColors(
+                        containerColor = outlineVariant,
+                        contentColor = Color.White,
+                        disabledContentColor = Color.LightGray,
+                        disabledContainerColor = Color.LightGray
+                    )
+                ) {
+                    Icon(
+                        Icons.Sharp.Search,
+                        tint = Color.White,
+                        modifier = Modifier.size(25.dp),
+                        contentDescription = "Search",
+                    )
+                }
+            }
+
+            if (showSheet) {
                 SearchBottomSheet(
+                    onDismiss = { showSheet = false },
                     onPlaceSelected = { place ->
                         destination = Position(latitude = place.lat, longitude = place.lon)
-                    },
-                )
-            }
-        ) { paddingValues ->
-            Box(modifier = Modifier.fillMaxSize()) {
-                if (!isLoadingRoute) {
-                    App(routeCoordinates, source, destination)
-                }
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    contentAlignment = Alignment.TopStart
-                ) {
-                    IconButton(
-                        onClick = {
-                            scope.launch { scaffoldState.bottomSheetState.partialExpand() }
-                        },
-                        colors = IconButtonColors(
-                            containerColor = outlineVariant,
-                            contentColor = Color.White,
-                            disabledContentColor = Color.LightGray,
-                            disabledContainerColor = Color.LightGray
-                        )
-                    ) {
-                        Icon(
-                            Icons.Sharp.Search,
-                            tint = Color.White,
-                            modifier = Modifier.size(25.dp),
-                            contentDescription = "Search",
-                        )
+                        showSheet = false
                     }
-                }
+                )
             }
         }
     }
