@@ -207,15 +207,7 @@ fun App(
                         Color.Blue
                     )
                 ),
-                textField =
-                    format(
-                        span(image("railway")),
-                        span(" "),
-                        span(
-                            feature["STNCODE"].asString(),
-                            textSize = const(1.2f.em)
-                        ),
-                    ),
+                textField = const("Start"),
                 textFont = const(listOf("Noto Sans Regular")),
                 textColor = const(MaterialTheme.colorScheme.onBackground),
                 textOffset = offset(0.em, 0.6.em),
@@ -292,7 +284,7 @@ fun MapWithSearchSheet() {
         val source = Position(latitude = -20.24444, longitude = 57.55417)
         var routeCoordinates by remember { mutableStateOf<List<Position>>(emptyList()) }
         val sheetState = rememberModalBottomSheetState(
-            skipPartiallyExpanded = false // Allow partial expansion
+            skipPartiallyExpanded = false
         )
         val scaffoldState = rememberBottomSheetScaffoldState(sheetState)
         val scope = rememberCoroutineScope()
