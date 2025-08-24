@@ -74,13 +74,9 @@ import dev.sargunv.maplibrecompose.core.GestureOptions
 import dev.sargunv.maplibrecompose.core.MapOptions
 import dev.sargunv.maplibrecompose.core.OrnamentOptions
 import dev.sargunv.maplibrecompose.core.source.GeoJsonData
-import dev.sargunv.maplibrecompose.expressions.dsl.asString
 import dev.sargunv.maplibrecompose.expressions.dsl.const
-import dev.sargunv.maplibrecompose.expressions.dsl.feature
-import dev.sargunv.maplibrecompose.expressions.dsl.format
 import dev.sargunv.maplibrecompose.expressions.dsl.image
 import dev.sargunv.maplibrecompose.expressions.dsl.offset
-import dev.sargunv.maplibrecompose.expressions.dsl.span
 import dev.sargunv.maplibrecompose.expressions.value.LineCap
 import dev.sargunv.maplibrecompose.expressions.value.LineJoin
 import dev.shade.gomauris.font.GoMaurisTheme
@@ -96,14 +92,10 @@ import io.github.dellisd.spatialk.geojson.Feature
 import io.github.dellisd.spatialk.geojson.LineString
 import io.github.dellisd.spatialk.geojson.Point
 import io.github.dellisd.spatialk.geojson.Position
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
-import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.launch
@@ -511,12 +503,6 @@ fun FormTextField(
                 )
             }
         }
-    }
-}
-
-private val httpClient = HttpClient(CIO) {
-    install(ContentNegotiation) {
-        json()
     }
 }
 
