@@ -275,6 +275,8 @@ fun MapWithSearchSheet() {
         }
         val source = Position(latitude = -20.24444, longitude = 57.55417)
         var routeCoordinates by remember { mutableStateOf<List<Position>>(emptyList()) }
+        var isLoadingRoute by remember { mutableStateOf(false) }
+        var routeError by remember { mutableStateOf<String?>(null) }
         val sheetState = rememberModalBottomSheetState(
             skipPartiallyExpanded = false
         )
@@ -282,7 +284,19 @@ fun MapWithSearchSheet() {
         val scope = rememberCoroutineScope()
 
         LaunchedEffect(destination) {
-            routeCoordinates = fetchRouteFromOSRM(source, destination)
+            isLoadingRoute = true
+            routeError = null
+
+            try {
+                val newRoute = fetchRouteFromOSRM(source, destination)
+                routeCoordinates = newRoute
+            } catch (e: Exception) {
+                routeError = e.message
+                // Keep previous route or set to empty
+                // routeCoordinates = emptyList() // Only if you want to clear on error
+            } finally {
+                isLoadingRoute = false
+            }
         }
 
         BottomSheetScaffold(
@@ -299,7 +313,9 @@ fun MapWithSearchSheet() {
             }
         ) { paddingValues ->
             Box(modifier = Modifier.fillMaxSize()) {
-                App(routeCoordinates, source, destination)
+                if (!isLoadingRoute) {
+                    App(routeCoordinates, source, destination)
+                }
 
                 Box(
                     modifier = Modifier
