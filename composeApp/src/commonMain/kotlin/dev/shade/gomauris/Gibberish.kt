@@ -174,15 +174,7 @@ fun App(
                     ClickResult.Consume
                 },
                 iconImage = image(rememberTintedVectorPainter(Icons.Filled.LocationOn, Color.Blue)),
-                textField =
-                    format(
-                        span(image("railway")),
-                        span(" "),
-                        span(
-                            feature["STNCODE"].asString(),
-                            textSize = const(1.2f.em)
-                        ),
-                    ),
+                textField = const("Start"),
                 textFont = const(listOf("Noto Sans Regular")),
                 textColor = const(MaterialTheme.colorScheme.onBackground),
                 textOffset = offset(0.em, 0.6.em),
@@ -207,7 +199,7 @@ fun App(
                         Color.Blue
                     )
                 ),
-                textField = const("Start"),
+                textField = const("End"),
                 textFont = const(listOf("Noto Sans Regular")),
                 textColor = const(MaterialTheme.colorScheme.onBackground),
                 textOffset = offset(0.em, 0.6.em),
