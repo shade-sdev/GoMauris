@@ -31,7 +31,7 @@ kotlin {
     ).forEach { iosTarget ->
         iosTarget.compilations {
             val main by getting {
-                //cinterops.create("maplibreRops")
+                cinterops.create("maplibreRops")
             }
         }
         iosTarget.binaries.framework {
