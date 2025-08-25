@@ -158,8 +158,23 @@ class HomeTabViewModel(
                 _mapPointerStatus.value = MapPointerStatus.DESTINATION
             }
 
+            MapPointerStatus.DESTINATION_WITHOUT_SOURCE -> {
+                when (_selectedTextField.value) {
+                    MapPointerStatus.NONE -> {}
+                    MapPointerStatus.SOURCE -> {
+                        _source.value = place
+                        _sourceSearch.value =
+                            place.displayName?.takeIf { it.isNotBlank() } ?: place.name
+                        fetchRouteFromOSRM()
+                        _mapPointerStatus.value = MapPointerStatus.DESTINATION
+                    }
+                    MapPointerStatus.DESTINATION -> {}
+                    MapPointerStatus.DESTINATION_WITHOUT_SOURCE -> {}
+                }
+            }
+
             MapPointerStatus.DESTINATION -> {}
-            MapPointerStatus.DESTINATION_WITHOUT_SOURCE -> {}
+
         }
     }
 

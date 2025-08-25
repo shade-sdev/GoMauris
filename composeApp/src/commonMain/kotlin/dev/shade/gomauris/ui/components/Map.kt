@@ -364,10 +364,11 @@ fun LocationItem(
 ) {
     Column(
         modifier = modifier
-            .fillMaxWidth()
+            .fillMaxSize()
             .padding(vertical = 5.dp)
     ) {
         Row(
+            modifier = Modifier.fillMaxSize().padding(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -390,7 +391,7 @@ fun LocationItem(
             }
 
             Column(
-                modifier = Modifier
+                modifier = Modifier.fillMaxSize()
                     .weight(1f)
                     .padding(start = 10.dp)
             ) {
