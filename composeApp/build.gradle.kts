@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.spmForKmp)
+    alias(libs.plugins.kotlinSerialization)
 }
 
 compose.resources {

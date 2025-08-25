@@ -7,13 +7,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import cafe.adriel.voyager.navigator.tab.Tab
 import cafe.adriel.voyager.navigator.tab.TabOptions
-import dev.shade.gomauris.MapWithSearchSheet
+import dev.shade.gomauris.ui.components.GoMaurisMapContainer
+import dev.shade.gomauris.viewmodel.HomeTabViewModel
+import org.koin.compose.viewmodel.koinViewModel
 
 object HomeTab : Tab {
 
     @Composable
     override fun Content() {
-        MapWithSearchSheet()
+        val screenModel = koinViewModel<HomeTabViewModel>()
+        GoMaurisMapContainer(screenModel)
     }
 
     override val options: TabOptions

@@ -1,5 +1,6 @@
 package dev.shade.gomauris.ui.theme
 
+import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -22,6 +23,11 @@ val GoMaurisColors = lightColorScheme(
     scrim = Color(0xFF222222), // Black
     surfaceBright = Color(0xFF06C961), // Selected
     surfaceTint = Color(0x0FFBABABA) // Icon lighter
+)
+
+val selectionColors = TextSelectionColors(
+    handleColor = Color(0xFF4CAF50),
+    backgroundColor = Color(0x664CAF50)
 )
 
 val RobotoFontFamily

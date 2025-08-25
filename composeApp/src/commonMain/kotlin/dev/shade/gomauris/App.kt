@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.transitions.SlideTransition
 import dev.shade.gomauris.di.dataModule
+import dev.shade.gomauris.di.viewModelModule
 import dev.shade.gomauris.ui.screen.HomeScreen
 import dev.shade.gomauris.ui.theme.GoMaurisColors
 import org.koin.compose.KoinApplication
@@ -13,7 +14,7 @@ import org.koin.compose.KoinApplication
 fun App() {
     KoinApplication(
         application = {
-            modules(dataModule)
+            modules(dataModule, viewModelModule)
         }
     ) {
         MaterialTheme(colorScheme = GoMaurisColors) {
