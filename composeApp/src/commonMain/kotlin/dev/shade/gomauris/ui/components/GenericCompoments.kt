@@ -38,6 +38,7 @@ fun FormTextField(
     modifier: Modifier = Modifier,
     label: String = "",
     icon: ImageVector,
+    iconColor: Color = GoMaurisColors.tertiary
 ) {
     val interactionSource = remember { MutableInteractionSource() }
 
@@ -83,7 +84,7 @@ fun FormTextField(
                         Icon(
                             imageVector = icon,
                             contentDescription = "",
-                            tint = GoMaurisColors.tertiary,
+                            tint = iconColor,
                             modifier = Modifier.size(20.dp)
                         )
                     },

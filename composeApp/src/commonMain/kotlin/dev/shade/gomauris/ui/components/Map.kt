@@ -2,6 +2,7 @@ package dev.shade.gomauris.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddLocationAlt
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.outlined.AddLocationAlt
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.sharp.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -73,6 +75,7 @@ import dev.sargunv.maplibrecompose.expressions.dsl.image
 import dev.sargunv.maplibrecompose.expressions.dsl.offset
 import dev.sargunv.maplibrecompose.expressions.value.LineCap
 import dev.sargunv.maplibrecompose.expressions.value.LineJoin
+import dev.shade.gomauris.core.model.MapPointerStatus
 import dev.shade.gomauris.ui.theme.GoMaurisColors
 import dev.shade.gomauris.ui.theme.RobotoFontFamily
 import dev.shade.gomauris.viewmodel.HomeTabViewModel
@@ -176,7 +179,12 @@ fun GoMaurisMap(
                 onClick = { features ->
                     ClickResult.Consume
                 },
-                iconImage = image(rememberTintedVectorPainter(Icons.Filled.LocationOn, Color.Blue)),
+                iconImage = image(
+                    rememberTintedVectorPainter(
+                        Icons.Filled.LocationOn,
+                        GoMaurisColors.surfaceBright
+                    )
+                ),
                 textFont = const(listOf("Noto Sans Regular")),
                 textColor = const(MaterialTheme.colorScheme.onBackground),
                 textOffset = offset(0.em, 0.6.em),
@@ -197,7 +205,7 @@ fun GoMaurisMap(
                 iconImage = image(
                     rememberTintedVectorPainter(
                         Icons.Filled.AddLocationAlt,
-                        Color.Blue
+                        Color.Red
                     )
                 ),
                 textFont = const(listOf("Noto Sans Regular")),
@@ -214,7 +222,17 @@ fun GoMaurisMap(
 @Composable
 fun MapBottomSheet(screenModel: HomeTabViewModel) {
     val results by screenModel.locationResults.collectAsState()
-    var sourceSearch by remember { mutableStateOf("") }
+
+    val modelSourceSearch by screenModel.sourceSearch.collectAsState()
+    val modelDestinationSearch by screenModel.destinationSearch.collectAsState()
+
+    var sourceSearch by remember(modelSourceSearch) {
+        mutableStateOf(modelSourceSearch ?: "")
+    }
+
+    var destinationSearch by remember(modelDestinationSearch) {
+        mutableStateOf(modelDestinationSearch ?: "")
+    }
 
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = false
@@ -224,6 +242,13 @@ fun MapBottomSheet(screenModel: HomeTabViewModel) {
         if (sourceSearch.isNotEmpty()) {
             delay(600)
             screenModel.updateSourceSearch(sourceSearch)
+        }
+    }
+
+    LaunchedEffect(destinationSearch) {
+        if (destinationSearch.isNotEmpty()) {
+            delay(600)
+            screenModel.updateDestinationSearch(destinationSearch)
         }
     }
 
@@ -266,7 +291,7 @@ fun MapBottomSheet(screenModel: HomeTabViewModel) {
 
             Row(
                 modifier = Modifier.wrapContentHeight()
-                    .padding(PaddingValues(20.dp, 0.dp, 20.dp, 5.dp))
+                    .padding(PaddingValues(20.dp, 0.dp, 20.dp, 10.dp))
                     .fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
@@ -274,9 +299,39 @@ fun MapBottomSheet(screenModel: HomeTabViewModel) {
                 FormTextField(
                     value = sourceSearch,
                     onValueChange = { sourceSearch = it },
-                    label = "Enter Location",
+                    label = "From Where?",
                     icon = Icons.Outlined.LocationOn,
-                    modifier = Modifier.height(40.dp).fillMaxWidth()
+                    iconColor = GoMaurisColors.surfaceBright,
+                    modifier = Modifier.height(40.dp)
+                        .fillMaxWidth()
+                        .onFocusChanged() {
+                            if (it.isFocused) {
+                                screenModel.updateSelectedSearchField(MapPointerStatus.SOURCE)
+                            }
+                        }
+                )
+            }
+
+            Row(
+                modifier = Modifier.wrapContentHeight()
+                    .padding(PaddingValues(20.dp, 0.dp, 20.dp, 5.dp))
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                FormTextField(
+                    value = destinationSearch,
+                    onValueChange = { destinationSearch = it },
+                    label = "Where to?",
+                    icon = Icons.Outlined.AddLocationAlt,
+                    iconColor = Color.Red,
+                    modifier = Modifier.height(40.dp)
+                        .fillMaxWidth()
+                        .onFocusChanged() {
+                            if (it.isFocused) {
+                                screenModel.updateSelectedSearchField(MapPointerStatus.DESTINATION)
+                            }
+                        }
                 )
             }
 
@@ -288,7 +343,11 @@ fun MapBottomSheet(screenModel: HomeTabViewModel) {
                     modifier = Modifier.weight(1f)
                 ) {
                     items(results) { place ->
-                        LocationItem(place.name, place.displayName)
+                        LocationItem(
+                            place.name,
+                            place.displayName,
+                            Modifier.clickable { screenModel.locationItemClick(place) }
+                        )
                     }
                 }
             }
@@ -298,43 +357,42 @@ fun MapBottomSheet(screenModel: HomeTabViewModel) {
 }
 
 @Composable
-fun LocationItem(name: String?, displayName: String?) {
-    Row(
-        modifier = Modifier
+fun LocationItem(
+    name: String?,
+    displayName: String?,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 5.dp)
     ) {
-
         Row(
-            modifier = Modifier.weight(1f),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Start
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(
-                modifier = Modifier.wrapContentWidth()
-                    .padding(PaddingValues(0.dp, 5.dp, 0.dp, 5.dp))
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .border(
-                            width = 0.5.dp,
-                            color = GoMaurisColors.outline,
-                            shape = CircleShape
-                        )
-                        .padding(8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.LocationOn,
-                        tint = GoMaurisColors.tertiary,
-                        contentDescription = "icon"
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .border(
+                        width = 0.5.dp,
+                        color = GoMaurisColors.outline,
+                        shape = CircleShape
                     )
-                }
+                    .padding(8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.LocationOn,
+                    tint = GoMaurisColors.tertiary,
+                    contentDescription = "icon"
+                )
             }
 
             Column(
-                modifier = Modifier.weight(1f)
-                    .padding(10.dp)
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 10.dp)
             ) {
                 Text(
                     text = name ?: "",
@@ -351,15 +409,12 @@ fun LocationItem(name: String?, displayName: String?) {
                     fontSize = 12.sp
                 )
             }
-
         }
-    }
 
-    Row(modifier = Modifier.wrapContentHeight()) {
         HorizontalDivider(
             thickness = 0.5.dp,
             color = GoMaurisColors.surfaceTint,
-            modifier = Modifier.height(1.dp)
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }
