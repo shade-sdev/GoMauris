@@ -2,7 +2,7 @@ name: Build Compose Multiplatform (Android & iOS)
 
 on:
   push:
-    branches: [ main, develop, master ]
+    branches: [ main, develop ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -10,7 +10,7 @@ on:
 jobs:
   build-android:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -56,11 +56,6 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-
-      - name: Set up Xcode
-        uses: actions/setup-xcode@v2
-        with:
-          xcode-version: latest-stable
 
       - name: Cache Gradle packages
         uses: actions/cache@v4
