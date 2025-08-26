@@ -2,7 +2,7 @@ name: Build Compose Multiplatform (Android & iOS)
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, master ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
