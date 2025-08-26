@@ -3,7 +3,6 @@ package dev.shade.gomauris.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.shade.gomauris.core.model.DetailedPosition
-import dev.shade.gomauris.core.model.GoMaurisEvent
 import dev.shade.gomauris.core.model.MapPointerStatus
 import dev.shade.gomauris.core.model.OpenStreetMap
 import dev.shade.gomauris.httpClient
@@ -14,12 +13,16 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.URLBuilder
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.consumeAsFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.double
@@ -34,8 +37,6 @@ class HomeTabViewModel(
     companion object {
         const val STYLE: String = "https://tiles.openfreemap.org/styles/liberty"
     }
-
-    private val eventChannel = Channel<GoMaurisEvent>(Channel.BUFFERED)
 
     private val _sheetState = MutableStateFlow(true)
     val sheetState: StateFlow<Boolean> = _sheetState.asStateFlow()
@@ -62,8 +63,12 @@ class HomeTabViewModel(
 
     private val _selectedTextField = MutableStateFlow(MapPointerStatus.NONE)
 
+    private val sourceSearchChannel = Channel<String>(Channel.UNLIMITED)
+    private val destinationSearchChannel = Channel<String>(Channel.UNLIMITED)
+
     init {
-        handleEvents()
+        observeSourceSearch()
+        observeDestinationSearch()
     }
 
     fun toggleSheet() {
@@ -168,13 +173,42 @@ class HomeTabViewModel(
                         fetchRouteFromOSRM()
                         _mapPointerStatus.value = MapPointerStatus.DESTINATION
                     }
+
                     MapPointerStatus.DESTINATION -> {}
                     MapPointerStatus.DESTINATION_WITHOUT_SOURCE -> {}
                 }
             }
 
-            MapPointerStatus.DESTINATION -> {}
+            MapPointerStatus.DESTINATION -> {
+                when (_selectedTextField.value) {
+                    MapPointerStatus.NONE -> {}
+                    MapPointerStatus.SOURCE -> {
+                        _source.value = place
+                        _sourceSearch.value =
+                            place.displayName?.takeIf { it.isNotBlank() } ?: place.name
+                        if (_destination.value.position != null) {
+                            _mapPointerStatus.value = MapPointerStatus.DESTINATION
+                            fetchRouteFromOSRM()
+                        } else {
+                            _mapPointerStatus.value = MapPointerStatus.SOURCE
+                        }
+                    }
 
+                    MapPointerStatus.DESTINATION -> {
+                        _destination.value = place
+                        _destinationSearch.value =
+                            place.displayName?.takeIf { it.isNotBlank() } ?: place.name
+                        if (_source.value.position != null) {
+                            _mapPointerStatus.value = MapPointerStatus.DESTINATION
+                            fetchRouteFromOSRM()
+                        } else {
+                            _mapPointerStatus.value = MapPointerStatus.DESTINATION_WITHOUT_SOURCE
+                        }
+                    }
+
+                    MapPointerStatus.DESTINATION_WITHOUT_SOURCE -> {}
+                }
+            }
         }
     }
 
@@ -244,35 +278,37 @@ class HomeTabViewModel(
 
     fun updateSourceSearch(search: String) {
         _sourceSearch.value = search
-        viewModelScope.launch(dispatcher) {
-            eventChannel.send(GoMaurisEvent.SourceSearchChanged(search))
-        }
+        sourceSearchChannel.trySend(search)
     }
 
     fun updateDestinationSearch(search: String) {
         _destinationSearch.value = search
-        viewModelScope.launch(dispatcher) {
-            eventChannel.send(GoMaurisEvent.DestinationSearchChanged(search))
-        }
+        destinationSearchChannel.trySend(search)
     }
 
     fun updateSelectedSearchField(status: MapPointerStatus) {
         _selectedTextField.value = status
     }
 
-    private fun handleEvents() {
+    @OptIn(FlowPreview::class)
+    private fun observeSourceSearch() {
         viewModelScope.launch(dispatcher) {
-            eventChannel.consumeAsFlow().collect { event ->
-                when (event) {
-                    is GoMaurisEvent.SourceSearchChanged -> {
-                        geoDecode(event.search)
-                    }
+            sourceSearchChannel.receiveAsFlow()
+                .debounce(600)
+                .filter { it.isNotBlank() }
+                .distinctUntilChanged()
+                .collect { query -> geoDecode(query) }
+        }
+    }
 
-                    is GoMaurisEvent.DestinationSearchChanged -> {
-                        geoDecode(event.search)
-                    }
-                }
-            }
+    @OptIn(FlowPreview::class)
+    private fun observeDestinationSearch() {
+        viewModelScope.launch(dispatcher) {
+            destinationSearchChannel.receiveAsFlow()
+                .debounce(600)
+                .filter { it.isNotBlank() }
+                .distinctUntilChanged()
+                .collect { query -> geoDecode(query) }
         }
     }
 

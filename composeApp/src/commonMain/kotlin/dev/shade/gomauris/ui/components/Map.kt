@@ -36,12 +36,9 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -83,7 +80,7 @@ import io.github.dellisd.spatialk.geojson.Feature
 import io.github.dellisd.spatialk.geojson.LineString
 import io.github.dellisd.spatialk.geojson.Point
 import io.github.dellisd.spatialk.geojson.Position
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.FlowPreview
 
 @Composable
 fun GoMaurisMapContainer(screenModel: HomeTabViewModel) {
@@ -218,7 +215,7 @@ fun GoMaurisMap(
 
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
 @Composable
 fun MapBottomSheet(screenModel: HomeTabViewModel) {
     val results by screenModel.locationResults.collectAsState()
@@ -226,31 +223,9 @@ fun MapBottomSheet(screenModel: HomeTabViewModel) {
     val modelSourceSearch by screenModel.sourceSearch.collectAsState()
     val modelDestinationSearch by screenModel.destinationSearch.collectAsState()
 
-    var sourceSearch by remember(modelSourceSearch) {
-        mutableStateOf(modelSourceSearch ?: "")
-    }
-
-    var destinationSearch by remember(modelDestinationSearch) {
-        mutableStateOf(modelDestinationSearch ?: "")
-    }
-
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = false
     )
-
-    LaunchedEffect(sourceSearch) {
-        if (sourceSearch.isNotEmpty()) {
-            delay(600)
-            screenModel.updateSourceSearch(sourceSearch)
-        }
-    }
-
-    LaunchedEffect(destinationSearch) {
-        if (destinationSearch.isNotEmpty()) {
-            delay(600)
-            screenModel.updateDestinationSearch(destinationSearch)
-        }
-    }
 
     ModalBottomSheet(
         onDismissRequest = { screenModel.toggleSheet() },
@@ -297,8 +272,8 @@ fun MapBottomSheet(screenModel: HomeTabViewModel) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 FormTextField(
-                    value = sourceSearch,
-                    onValueChange = { sourceSearch = it },
+                    value = modelSourceSearch ?: "",
+                    onValueChange = { screenModel.updateSourceSearch(it) },
                     label = "From Where?",
                     icon = Icons.Outlined.LocationOn,
                     iconColor = GoMaurisColors.surfaceBright,
@@ -320,8 +295,8 @@ fun MapBottomSheet(screenModel: HomeTabViewModel) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 FormTextField(
-                    value = destinationSearch,
-                    onValueChange = { destinationSearch = it },
+                    value = modelDestinationSearch ?: "",
+                    onValueChange = { screenModel.updateDestinationSearch(it) },
                     label = "Where to?",
                     icon = Icons.Outlined.AddLocationAlt,
                     iconColor = Color.Red,
