@@ -73,7 +73,19 @@ jobs:
       - name: Build iOS IPA
         run: |
           cd iosApp
-          xcodebuild -workspace iosApp.xcworkspace \
+          ls -la
+          
+          # Check if workspace exists, otherwise use project
+          if [ -f "iosApp.xcworkspace/contents.xcworkspacedata" ]; then
+            PROJECT_TYPE="-workspace iosApp.xcworkspace"
+          elif [ -d "iosApp.xcodeproj" ]; then
+            PROJECT_TYPE="-project iosApp.xcodeproj"
+          else
+            echo "No Xcode workspace or project found"
+            exit 1
+          fi
+          
+          xcodebuild $PROJECT_TYPE \
                      -scheme iosApp \
                      -configuration Release \
                      -destination generic/platform=iOS \
@@ -96,7 +108,7 @@ jobs:
   commit-artifacts:
     needs: [build-android, build-ios]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/master'
 
     steps:
       - name: Checkout code
