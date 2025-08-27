@@ -82,10 +82,10 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Select Xcode
-        uses: actions/setup-xcode@v2
+      - name: Select stable Xcode (15.4)
+        uses: maxim-lobanov/setup-xcode@v1.6.0
         with:
-          xcode-version: '15.4' # Stable version
+          xcode-version: '15.4'
 
       - name: Fix Xcode Project Format Compatibility
         run: |
