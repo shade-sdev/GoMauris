@@ -45,7 +45,7 @@ jobs:
           retention-days: 30
 
   build-ios:
-    runs-on: macos-latest
+    runs-on: macos-14  # Use macos-14 for better iOS 18 support
 
     steps:
       - name: Checkout code
@@ -56,6 +56,9 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
+
+      - name: Select Xcode version
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
 
       - name: Cache Gradle packages
         uses: actions/cache@v4
@@ -70,45 +73,93 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Build iOS IPA
+      - name: Generate iOS Framework
+        run: ./gradlew linkPodReleaseFrameworkIosArm64
+
+      - name: Create exportOptions.plist
         run: |
           cd iosApp
-          ls -la
+          cat > exportOptions.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>ad-hoc</string>
+              <key>compileBitcode</key>
+              <false/>
+              <key>signingStyle</key>
+              <string>automatic</string>
+              <key>stripSwiftSymbols</key>
+              <true/>
+              <key>thinning</key>
+              <string>&lt;none&gt;</string>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Build iOS Archive
+        run: |
+          cd iosApp
           
           # Check if workspace exists, otherwise use project
           if [ -f "iosApp.xcworkspace/contents.xcworkspacedata" ]; then
             PROJECT_TYPE="-workspace iosApp.xcworkspace"
+            echo "Using workspace"
           elif [ -d "iosApp.xcodeproj" ]; then
             PROJECT_TYPE="-project iosApp.xcodeproj"
+            echo "Using project"
           else
             echo "No Xcode workspace or project found"
+            find . -name "*.xcodeproj" -o -name "*.xcworkspace"
             exit 1
           fi
           
-          xcodebuild $PROJECT_TYPE \
+          # Clean build directory
+          rm -rf build/
+          mkdir -p build/
+          
+          # Archive the project
+          set -o pipefail && xcodebuild $PROJECT_TYPE \
                      -scheme iosApp \
                      -configuration Release \
-                     -destination generic/platform=iOS \
+                     -destination "generic/platform=iOS" \
                      -archivePath build/iosApp.xcarchive \
                      archive \
-                     CODE_SIGNING_ALLOWED=NO
+                     CODE_SIGNING_ALLOWED=NO \
+                     CODE_SIGN_IDENTITY="" \
+                     PROVISIONING_PROFILE="" \
+                     IPHONEOS_DEPLOYMENT_TARGET=12.0 \
+                     SWIFT_OPTIMIZATION_LEVEL="-Onone" \
+                     | xcpretty
           
+          # Export archive to IPA
           xcodebuild -exportArchive \
                      -archivePath build/iosApp.xcarchive \
                      -exportPath build/ \
-                     -exportOptionsPlist exportOptions.plist
+                     -exportOptionsPlist exportOptions.plist \
+                     | xcpretty
+
+      - name: List build outputs
+        run: |
+          echo "Build directory contents:"
+          find iosApp/build -type f -name "*.ipa" || echo "No IPA found"
+          ls -la iosApp/build/ || echo "No build directory"
 
       - name: Upload iOS IPA
         uses: actions/upload-artifact@v4
         with:
           name: ios-ipa
-          path: iosApp/build/*.ipa
+          path: |
+            iosApp/build/*.ipa
+            iosApp/build/iosApp.xcarchive
           retention-days: 30
+        if: always()  # Upload even if previous steps had warnings
 
   commit-artifacts:
     needs: [build-android, build-ios]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/master' && success()
 
     steps:
       - name: Checkout code
@@ -122,30 +173,38 @@ jobs:
           name: android-apk
           path: artifacts/android/
 
-      - name: Download iOS IPA
+      - name: Download iOS artifacts
         uses: actions/download-artifact@v4
         with:
           name: ios-ipa
           path: artifacts/ios/
+        continue-on-error: true  # Don't fail if iOS build didn't produce artifacts
 
       - name: Create artifacts directory structure
         run: |
           mkdir -p artifacts/android artifacts/ios
-          ls -la artifacts/
+          echo "Artifacts directory contents:"
+          find artifacts/ -type f || echo "No artifacts found"
 
       - name: Add timestamp to artifacts
         run: |
           timestamp=$(date +'%Y%m%d_%H%M%S')
+          
+          # Process Android APKs
           cd artifacts/android
           for file in *.apk; do
             if [ -f "$file" ]; then
               mv "$file" "${file%.*}_${timestamp}.apk"
+              echo "Renamed Android artifact: $file"
             fi
           done
+          
+          # Process iOS IPAs
           cd ../ios
           for file in *.ipa; do
             if [ -f "$file" ]; then
               mv "$file" "${file%.*}_${timestamp}.ipa"
+              echo "Renamed iOS artifact: $file"
             fi
           done
 
@@ -153,11 +212,17 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add artifacts/
           
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
+          # Only add files if they exist
+          if [ -n "$(find artifacts/ -name '*.apk' -o -name '*.ipa' 2>/dev/null)" ]; then
+            git add artifacts/
+          
+            if git diff --staged --quiet; then
+              echo "No changes to commit"
+            else
+              git commit -m "Add build artifacts - $(date +'%Y-%m-%d %H:%M:%S')"
+              git push
+            fi
           else
-            git commit -m "Add build artifacts - $(date +'%Y-%m-%d %H:%M:%S')"
-            git push
+            echo "No artifacts to commit"
           fi
