@@ -45,7 +45,7 @@ jobs:
           retention-days: 30
 
   build-ios:
-    runs-on: macos-14  # Use macos-14 for better iOS 18 support
+    runs-on: macos-latest  # Use latest macOS runner for best Xcode support
 
     steps:
       - name: Checkout code
@@ -58,7 +58,54 @@ jobs:
           distribution: 'temurin'
 
       - name: Select Xcode version
-        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+        run: |
+          # List available Xcode versions
+          echo "Available Xcode versions:"
+          ls /Applications/ | grep Xcode || echo "No Xcode apps found"
+          
+          # Try to find and use the highest available Xcode version
+          LATEST_XCODE=$(ls /Applications/ | grep '^Xcode_' | sort -V | tail -1)
+          
+          if [ -n "$LATEST_XCODE" ]; then
+            sudo xcode-select -s "/Applications/$LATEST_XCODE/Contents/Developer"
+            echo "Using $LATEST_XCODE"
+          elif [ -d "/Applications/Xcode.app" ]; then
+            sudo xcode-select -s "/Applications/Xcode.app/Contents/Developer"
+            echo "Using default Xcode.app"
+          else
+            echo "No Xcode installation found"
+            exit 1
+          fi
+          
+          # Show selected Xcode version
+          echo "Selected Xcode path: $(xcode-select -p)"
+          echo "Xcode version: $(xcrun xcodebuild -version)"
+
+      - name: Fix Xcode Project Format Compatibility
+        run: |
+          cd iosApp
+          
+          # Check if project.pbxproj exists
+          if [ -f "iosApp.xcodeproj/project.pbxproj" ]; then
+            echo "Checking Xcode project format..."
+          
+            # Create a backup
+            cp iosApp.xcodeproj/project.pbxproj iosApp.xcodeproj/project.pbxproj.backup
+          
+            # Try to fix the project format by changing it to a compatible version
+            # Format 77 is Xcode 16, let's try to change it to format 60 (Xcode 15)
+            sed -i '' 's/objectVersion = 77;/objectVersion = 60;/g' iosApp.xcodeproj/project.pbxproj
+            sed -i '' 's/compatibilityVersion = "Xcode 16.0";/compatibilityVersion = "Xcode 15.0";/g' iosApp.xcodeproj/project.pbxproj
+          
+            echo "Modified project file to be compatible with Xcode 15"
+          
+            # Show the changes made
+            echo "Changes made to project.pbxproj:"
+            grep -E "objectVersion|compatibilityVersion" iosApp.xcodeproj/project.pbxproj || echo "No version strings found"
+          else
+            echo "project.pbxproj not found"
+            ls -la iosApp.xcodeproj/
+          fi
 
       - name: Cache Gradle packages
         uses: actions/cache@v4
