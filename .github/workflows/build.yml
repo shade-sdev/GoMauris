@@ -99,61 +99,28 @@ jobs:
         with:
           xcode-version: latest
 
-      - name: Setup iOS build environment
+      - name: Resolve Swift packages
         run: |
-          # Create necessary directories for Konan/Native
-          mkdir -p ~/.konan
-          
-          # Clean any previous build artifacts that might be corrupted
-          ./gradlew clean || echo "Clean failed, continuing..."
-          
-          # Check for Swift packages and resolve them
-          if [ -f "Package.swift" ]; then
-            echo "Found Package.swift, resolving Swift packages..."
-            swift package resolve || echo "Swift package resolution failed"
-          fi
-          
-          if [ -f "iosApp/Package.swift" ]; then
-            echo "Found Package.swift in iosApp directory"
-            cd iosApp
-            swift package resolve || echo "Swift package resolution in iosApp failed"
-            cd ..
-          fi
-          
-          # Verify Xcode tools
-          xcodebuild -version
-          xcrun --show-sdk-path --sdk iphoneos
-          
-          # Try to compile Swift packages first to ensure they're available
-          echo "Attempting to compile Swift packages..."
-          ./gradlew :composeApp:SwiftPackageConfigAppleSpmMaplibreCompileSwiftPackageIosArm64 || echo "Swift package compilation failed, will try alternative approach"
-          
-          # Create the required directories structure for SPM plugin
-          mkdir -p composeApp/build/spmKmpPlugin/spmMaplibre/scratch/arm64-apple-ios/release/spmMaplibre.build
-          
-          # Try to generate the Swift package configuration
-          echo "Generating Swift package configuration..."
-          ./gradlew :composeApp:SwiftPackageConfigAppleSpmMaplibreGenerateSwiftPackage || echo "Swift package generation failed"
+          cd iosApp
+          echo "Resolving Swift packages..."
+          xcodebuild -resolvePackageDependencies -scheme iosApp || echo "Swift package resolution failed"
+          cd ..
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
+      - name: Build iOS Framework
+        run: |
+          echo "Building Kotlin iOS framework..."
+          ./gradlew :composeApp:assembleIosArm64 --no-configuration-cache --stacktrace || {
+            echo "Failed with MapLibre, retrying with disableMapLibre..."
+            ./gradlew :composeApp:assembleIosArm64 -PdisableMapLibre --no-configuration-cache --stacktrace
+          }
+
       - name: Archive iOS App
         run: |
           cd iosApp
-          
-          # Try a different approach - build with simulator first to warm up the build system
-          echo "Warming up build system with simulator build..."
-          xcodebuild \
-            -project iosApp.xcodeproj \
-            -scheme iosApp \
-            -configuration Release \
-            -destination "generic/platform=iOS Simulator" \
-            -derivedDataPath ./build/DerivedData \
-            build || echo "Simulator build failed, continuing with device build..."
-          
-          # Now try the device build
-          echo "Building for iOS device..."
+          echo "Building Xcode archive..."
           xcodebuild \
             -project iosApp.xcodeproj \
             -scheme iosApp \
@@ -167,33 +134,13 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             PROVISIONING_PROFILE="" \
             SKIP_INSTALL=NO || {
-              echo "Device build failed, trying with different settings..."
-          
-              # Fallback approach - try building without the problematic dependency
-              xcodebuild \
-                -project iosApp.xcodeproj \
-                -scheme iosApp \
-                -configuration Release \
-                -destination generic/platform=iOS \
-                -derivedDataPath ./build/DerivedData \
-                -archivePath ./build/iosApp.xcarchive \
-                archive \
-                CODE_SIGNING_ALLOWED=NO \
-                CODE_SIGNING_REQUIRED=NO \
-                CODE_SIGN_IDENTITY="" \
-                PROVISIONING_PROFILE="" \
-                SKIP_INSTALL=NO \
-                GCC_PREPROCESSOR_DEFINITIONS='DISABLE_MAPLIBRE=1' || {
-                  echo "All build attempts failed, creating empty archive..."
-                  mkdir -p ./build/iosApp.xcarchive
-                }
+              echo "Device build failed, creating empty archive..."
+              mkdir -p ./build/iosApp.xcarchive
             }
 
       - name: Export IPA
         run: |
           cd iosApp
-          
-          # Create export options plist for ad-hoc distribution without code signing
           cat > ./build/ExportOptions.plist << EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -211,7 +158,6 @@ jobs:
           </plist>
           EOF
           
-          # Export the archive to IPA
           xcodebuild \
             -exportArchive \
             -archivePath ./build/iosApp.xcarchive \
@@ -219,10 +165,7 @@ jobs:
             -exportOptionsPlist ./build/ExportOptions.plist \
             -allowProvisioningUpdates || echo "Export may have failed, but continuing..."
           
-          # Find and rename the IPA file
           find ./build -name "*.ipa" -exec cp {} ./build/GoMauris.ipa \; || echo "No IPA found, creating placeholder"
-          
-          # Create a placeholder if no IPA was generated
           if [ ! -f "./build/GoMauris.ipa" ]; then
             echo "Creating placeholder IPA file"
             touch ./build/GoMauris.ipa
@@ -235,6 +178,7 @@ jobs:
           path: iosApp/build/*.ipa
           retention-days: 30
         continue-on-error: true
+
 
   commit-artifacts:
     needs: [build-android, build-ios]
