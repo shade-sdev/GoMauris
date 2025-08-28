@@ -85,7 +85,7 @@ jobs:
       - name: Select stable Xcode (15.4)
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          xcode-version: latest
 
       - name: Fix Xcode Project Format Compatibility
         run: |
