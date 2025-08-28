@@ -33,34 +33,11 @@ jobs:
             ${{ runner.os }}-gradle-konan-
             ${{ runner.os }}-gradle-
 
-      - name: Setup iOS build environment
-        run: |
-          # Install required tools
-          which xcodebuild || echo "xcodebuild not found"
-          which swift || echo "swift not found"
-          
-          # Create necessary directories for SPM
-          mkdir -p ~/.konan
-          
-          # Check if Package.swift exists (SPM project indicator)
-          if [ -f "Package.swift" ]; then
-            echo "Found Package.swift, resolving Swift packages..."
-            swift package resolve || echo "Swift package resolution failed"
-          fi
-          
-          # Check for SPM in iOS app directory
-          if [ -f "iosApp/Package.swift" ]; then
-            echo "Found Package.swift in iosApp directory"
-            cd iosApp
-            swift package resolve || echo "Swift package resolution in iosApp failed"
-            cd ..
-          fi
-
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
       - name: Build Android APK
-        run: ./gradlew assembleRelease
+        run: ./gradlew :composeApp:assembleRelease --stacktrace --no-configuration-cache
 
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
@@ -197,7 +174,7 @@ jobs:
         with:
           name: ios-ipa
           path: artifacts/ios/
-        continue-on-error: true  # Don't fail if iOS build didn't produce artifacts
+        continue-on-error: true
 
       - name: Create artifacts directory structure
         run: |
@@ -209,7 +186,6 @@ jobs:
         run: |
           timestamp=$(date +'%Y%m%d_%H%M%S')
           
-          # Process Android APKs
           cd artifacts/android
           for file in *.apk; do
             if [ -f "$file" ]; then
@@ -218,7 +194,6 @@ jobs:
             fi
           done
           
-          # Process iOS IPAs
           cd ../ios
           for file in *.ipa; do
             if [ -f "$file" ]; then
@@ -232,10 +207,8 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           
-          # Only add files if they exist
           if [ -n "$(find artifacts/ -name '*.apk' -o -name '*.ipa' 2>/dev/null)" ]; then
             git add artifacts/
-          
             if git diff --staged --quiet; then
               echo "No changes to commit"
             else
