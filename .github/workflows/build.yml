@@ -95,9 +95,9 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: Setup Xcode
-        uses: maxim-lobanov/setup-xcode@v1
+        uses: maxim-lobanov/setup-xcode@v1.6.0
         with:
-          xcode-version: latest-stable
+          xcode-version: latest
 
       - name: Setup iOS build environment
         run: |
@@ -125,7 +125,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build Kotlin Framework for iOS
-        run: ./gradlew :composeApp:assembleReleaseAppleFrameworkForXcodeIosArm64
+        run: ./gradlew :composeApp:assembleReleaseAppleFrameworkForXcode
 
       - name: Archive iOS App
         run: |
