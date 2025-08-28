@@ -124,9 +124,6 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Build Kotlin Framework for iOS
-        run: ./gradlew :composeApp:assembleReleaseAppleFrameworkForXcode
-
       - name: Archive iOS App
         run: |
           cd iosApp
