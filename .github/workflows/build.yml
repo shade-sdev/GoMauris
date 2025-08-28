@@ -104,6 +104,9 @@ jobs:
           # Create necessary directories for Konan/Native
           mkdir -p ~/.konan
           
+          # Clean any previous build artifacts that might be corrupted
+          ./gradlew clean || echo "Clean failed, continuing..."
+          
           # Check for Swift packages and resolve them
           if [ -f "Package.swift" ]; then
             echo "Found Package.swift, resolving Swift packages..."
@@ -120,6 +123,10 @@ jobs:
           # Verify Xcode tools
           xcodebuild -version
           xcrun --show-sdk-path --sdk iphoneos
+          
+          # Pre-generate Swift package configurations to avoid build-time issues
+          echo "Pre-generating Swift package configurations..."
+          ./gradlew :composeApp:SwiftPackageConfigAppleSpmMaplibreGenerateSwiftPackage || echo "Swift package generation failed, continuing..."
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
@@ -127,6 +134,13 @@ jobs:
       - name: Archive iOS App
         run: |
           cd iosApp
+          
+          # Try to build the framework first using Gradle to ensure all dependencies are ready
+          echo "Pre-building Kotlin framework and dependencies..."
+          cd ..
+          ./gradlew :composeApp:assembleReleaseFrameworkIosArm64 || echo "Framework pre-build failed, continuing with Xcode build..."
+          cd iosApp
+          
           xcodebuild \
             -project iosApp.xcodeproj \
             -scheme iosApp \
