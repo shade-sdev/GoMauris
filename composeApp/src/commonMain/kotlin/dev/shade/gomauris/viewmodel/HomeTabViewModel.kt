@@ -2,15 +2,17 @@ package dev.shade.gomauris.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dev.shade.gomauris.core.model.DetailedPosition
-import dev.shade.gomauris.core.model.MapPointerStatus
-import dev.shade.gomauris.core.model.OpenStreetMap
+import core.models.Result
+import core.models.UiState
+import dev.shade.gomauris.core.model.map.DetailedPosition
+import dev.shade.gomauris.core.model.map.MapPointerStatus
+import dev.shade.gomauris.core.model.map.OpenStreetMap
+import dev.shade.gomauris.core.service.MapService
 import dev.shade.gomauris.httpClient
 import io.github.dellisd.spatialk.geojson.Position
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
-import io.ktor.http.URLBuilder
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -31,6 +33,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 class HomeTabViewModel(
+    private val mapService: MapService,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
 
@@ -52,8 +55,8 @@ class HomeTabViewModel(
 
     private val _mapPointerStatus = MutableStateFlow(MapPointerStatus.NONE)
 
-    private val _locationResults = MutableStateFlow<List<DetailedPosition>>(emptyList())
-    val locationResults: StateFlow<List<DetailedPosition>> = _locationResults.asStateFlow()
+    private val _locationResults = MutableStateFlow<UiState<List<DetailedPosition>>>(UiState.Idle)
+    val locationResults: StateFlow<UiState<List<DetailedPosition>>> = _locationResults.asStateFlow()
 
     private val _sourceSearch = MutableStateFlow<String?>(null)
     val sourceSearch: StateFlow<String?> = _sourceSearch.asStateFlow()
@@ -95,7 +98,7 @@ class HomeTabViewModel(
                 _destination.value = DetailedPosition(null, null, null)
                 _sourceSearch.value = null
                 _destinationSearch.value = null
-                _locationResults.value = emptyList()
+                _locationResults.value = UiState.Idle
                 _routeCoordinates.value = emptyList()
                 _mapPointerStatus.value = MapPointerStatus.NONE
             }
@@ -260,18 +263,15 @@ class HomeTabViewModel(
 
     fun geoDecode(location: String) {
         viewModelScope.launch(dispatcher) {
-            val url = URLBuilder("https://nominatim.openstreetmap.org/search").apply {
-                parameters.append("q", location)
-                parameters.append("countrycodes", "mu")
-                parameters.append("format", "jsonv2")
-            }.buildString()
+            _locationResults.value = UiState.Loading
+            when (val result = mapService.searchGeoLocation(location)) {
+                is Result.Error -> {
+                    _locationResults.value = UiState.Error(result.message)
+                }
 
-            val locations: List<OpenStreetMap> = httpClient.get(url).body()
-            _locationResults.value = locations.map { it ->
-                DetailedPosition(
-                    Position(it.lon, it.lat, it.lon),
-                    it.name, it.display_name
-                )
+                is Result.Success<List<DetailedPosition>> -> {
+                    _locationResults.value = UiState.Success(result.data)
+                }
             }
         }
     }

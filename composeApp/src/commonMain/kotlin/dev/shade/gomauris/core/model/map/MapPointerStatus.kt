@@ -1,4 +1,4 @@
-package dev.shade.gomauris.core.model
+package dev.shade.gomauris.core.model.map
 
 enum class MapPointerStatus {
     NONE,
