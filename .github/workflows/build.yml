@@ -109,12 +109,12 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Build iOS Framework
+      - name: Build Kotlin iOS Framework
         run: |
-          echo "Building Kotlin iOS framework..."
-          ./gradlew :composeApp:assembleIosArm64 --no-configuration-cache --stacktrace || {
+          echo "Building KMP iOS framework..."
+          ./gradlew :composeApp:linkReleaseFrameworkIosArm64 --no-configuration-cache --stacktrace || {
             echo "Failed with MapLibre, retrying with disableMapLibre..."
-            ./gradlew :composeApp:assembleIosArm64 -PdisableMapLibre --no-configuration-cache --stacktrace
+            ./gradlew :composeApp:linkReleaseFrameworkIosArm64 -PdisableMapLibre --no-configuration-cache --stacktrace
           }
 
       - name: Archive iOS App
@@ -133,12 +133,9 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             PROVISIONING_PROFILE="" \
-            SKIP_INSTALL=NO || {
-              echo "Device build failed, creating empty archive..."
-              mkdir -p ./build/iosApp.xcarchive
-            }
+            SKIP_INSTALL=NO
 
-      - name: Export IPA
+      - name: Export unsigned IPA
         run: |
           cd iosApp
           cat > ./build/ExportOptions.plist << EOF
@@ -162,8 +159,7 @@ jobs:
             -exportArchive \
             -archivePath ./build/iosApp.xcarchive \
             -exportPath ./build \
-            -exportOptionsPlist ./build/ExportOptions.plist \
-            -allowProvisioningUpdates || echo "Export may have failed, but continuing..."
+            -exportOptionsPlist ./build/ExportOptions.plist || echo "Export may have failed, continuing..."
           
           find ./build -name "*.ipa" -exec cp {} ./build/GoMauris.ipa \; || echo "No IPA found, creating placeholder"
           if [ ! -f "./build/GoMauris.ipa" ]; then
@@ -178,7 +174,6 @@ jobs:
           path: iosApp/build/*.ipa
           retention-days: 30
         continue-on-error: true
-
 
   commit-artifacts:
     needs: [build-android, build-ios]
