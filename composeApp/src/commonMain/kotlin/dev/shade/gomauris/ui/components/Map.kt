@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,19 +25,24 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.outlined.AddLocationAlt
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.sharp.Search
+import androidx.compose.material3.BottomSheetScaffold
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonColors
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetState
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,7 +56,10 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -86,43 +93,75 @@ import io.github.dellisd.spatialk.geojson.LineString
 import io.github.dellisd.spatialk.geojson.Point
 import io.github.dellisd.spatialk.geojson.Position
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GoMaurisMapContainer(screenModel: HomeTabViewModel) {
-    val sheetState by screenModel.sheetState.collectAsState()
+    val scaffoldState = rememberBottomSheetScaffoldState(
+        bottomSheetState = SheetState(
+            skipPartiallyExpanded = false,
+            initialValue = SheetValue.PartiallyExpanded,
+            density = LocalDensity.current,
+            confirmValueChange = { true },
+            skipHiddenState = false
+        )
+    )
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        GoMaurisMap(screenModel)
+    val scope = rememberCoroutineScope()
+    val swipeEnabled = screenModel.bottomSheetSwipeEnable.collectAsState()
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            contentAlignment = Alignment.TopStart
-        ) {
-            IconButton(
-                onClick = { screenModel.toggleSheet() },
-                colors = IconButtonColors(
-                    containerColor = GoMaurisColors.tertiary,
-                    contentColor = Color.White,
-                    disabledContentColor = Color.LightGray,
-                    disabledContainerColor = Color.LightGray
-                )
-            ) {
-                Icon(
-                    Icons.Sharp.Search,
-                    tint = Color.White,
-                    modifier = Modifier.size(25.dp),
-                    contentDescription = "Search",
-                )
-            }
-        }
-
-        if (sheetState) {
+    BottomSheetScaffold(
+        scaffoldState = scaffoldState,
+        sheetPeekHeight = LocalWindowInfo.current.containerSize.height.dp.div(5.5f),
+        sheetShape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp),
+        sheetContainerColor = Color.White,
+        sheetContent = {
             MapBottomSheet(screenModel)
+        },
+        sheetSwipeEnabled = swipeEnabled.value,
+        sheetDragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(10.dp)
+                    .width(32.dp)
+                    .height(3.dp)
+                    .background(
+                        color = GoMaurisColors.tertiary.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(2.dp)
+                    )
+            )
+        }
+    ) { paddingValues ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            GoMaurisMap(screenModel)
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                contentAlignment = Alignment.TopStart
+            ) {
+                IconButton(
+                    onClick = { scope.launch { scaffoldState.bottomSheetState.partialExpand() } },
+                    colors = IconButtonColors(
+                        containerColor = GoMaurisColors.tertiary,
+                        contentColor = Color.White,
+                        disabledContentColor = Color.LightGray,
+                        disabledContainerColor = Color.LightGray
+                    )
+                ) {
+                    Icon(
+                        Icons.Sharp.Search,
+                        tint = Color.White,
+                        modifier = Modifier.size(25.dp),
+                        contentDescription = "Search",
+                    )
+                }
+            }
+
         }
     }
-
 }
 
 @Composable
@@ -223,167 +262,206 @@ fun GoMaurisMap(
 @OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
 @Composable
 fun MapBottomSheet(screenModel: HomeTabViewModel) {
-    val results by screenModel.locationResults.collectAsState()
-
     val modelSourceSearch by screenModel.sourceSearch.collectAsState()
     val modelDestinationSearch by screenModel.destinationSearch.collectAsState()
 
-    val sheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = false
-    )
-
-    val focusManager = LocalFocusManager.current
     val destinationFocusRequester = remember { FocusRequester() }
 
-    ModalBottomSheet(
-        onDismissRequest = { screenModel.toggleSheet() },
-        sheetState = sheetState,
-        modifier = Modifier.fillMaxHeight(),
-        shape = RoundedCornerShape(
-            topStart = 8.dp,
-            topEnd = 8.dp
-        ),
-        containerColor = Color.White,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(10.dp)
-                    .width(32.dp)
-                    .height(3.dp)
-                    .background(
-                        color = GoMaurisColors.tertiary.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(2.dp)
-                    )
+    Column {
+        Row(
+            modifier = Modifier.wrapContentHeight()
+                .padding(PaddingValues(20.dp, 10.dp, 20.dp, 10.dp))
+        ) {
+            Text(
+                text = "Where to?",
+                color = Color.Black,
+                fontFamily = RobotoFontFamily,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
             )
         }
-    ) {
-        Column {
-            Row(
-                modifier = Modifier.wrapContentHeight()
-                    .padding(PaddingValues(20.dp, 10.dp, 20.dp, 10.dp))
+
+        Row(
+            modifier = Modifier.wrapContentHeight()
+                .padding(PaddingValues(20.dp, 0.dp, 20.dp, 10.dp))
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            FormTextField(
+                value = modelSourceSearch ?: "",
+                onValueChange = { screenModel.updateSourceSearch(it) },
+                label = "From Where?",
+                icon = Icons.Outlined.LocationOn,
+                iconColor = GoMaurisColors.surfaceBright,
+                modifier = Modifier.height(40.dp)
+                    .fillMaxWidth()
+                    .focusRequester(destinationFocusRequester)
+                    .onFocusChanged() {
+                        if (it.isFocused) {
+                            screenModel.updateSelectedSearchField(MapPointerStatus.SOURCE)
+                        }
+                    }
+            )
+        }
+
+        Row(
+            modifier = Modifier.wrapContentHeight()
+                .padding(PaddingValues(20.dp, 0.dp, 20.dp, 5.dp))
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            FormTextField(
+                value = modelDestinationSearch ?: "",
+                onValueChange = { screenModel.updateDestinationSearch(it) },
+                label = "Where to?",
+                icon = Icons.Outlined.AddLocationAlt,
+                iconColor = Color.Red,
+                modifier = Modifier.height(40.dp)
+                    .fillMaxWidth()
+                    .focusRequester(destinationFocusRequester)
+                    .onFocusChanged() {
+                        if (it.isFocused) {
+                            screenModel.updateSelectedSearchField(MapPointerStatus.DESTINATION)
+                        }
+                    }
+            )
+        }
+
+        Row(
+            modifier = Modifier.weight(1f)
+                .padding(PaddingValues(20.dp, 0.dp, 20.dp, 5.dp))
+        ) {
+            MapBottomSheetBottomContent(screenModel)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MapBottomSheetBottomContent(
+    screenModel: HomeTabViewModel
+) {
+    val results by screenModel.locationResults.collectAsState()
+    val focusManager = LocalFocusManager.current
+
+    when (val state = results) {
+        is UiState.Error -> {
+            Column(
+                modifier = Modifier.fillMaxSize()
+                    .padding(PaddingValues(top = 40.dp)),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Where to?",
-                    color = Color.Black,
+                    "Something went wrong try again",
+                    fontSize = 14.sp,
                     fontFamily = RobotoFontFamily,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Light,
+                    color = GoMaurisColors.surfaceTint
                 )
             }
+        }
 
-            Row(
-                modifier = Modifier.wrapContentHeight()
-                    .padding(PaddingValues(20.dp, 0.dp, 20.dp, 10.dp))
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
+        UiState.Idle -> {
+            Column(
+                modifier = Modifier.fillMaxSize()
+                    .padding(PaddingValues(top = 40.dp)),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                FormTextField(
-                    value = modelSourceSearch ?: "",
-                    onValueChange = { screenModel.updateSourceSearch(it) },
-                    label = "From Where?",
-                    icon = Icons.Outlined.LocationOn,
-                    iconColor = GoMaurisColors.surfaceBright,
-                    modifier = Modifier.height(40.dp)
-                        .fillMaxWidth()
-                        .focusRequester(destinationFocusRequester)
-                        .onFocusChanged() {
-                            if (it.isFocused) {
-                                screenModel.updateSelectedSearchField(MapPointerStatus.SOURCE)
-                            }
-                        }
+                Text(
+                    "Search to get started",
+                    fontSize = 14.sp,
+                    fontFamily = RobotoFontFamily,
+                    fontWeight = FontWeight.Light,
+                    color = GoMaurisColors.surfaceTint
                 )
             }
+        }
 
-            Row(
-                modifier = Modifier.wrapContentHeight()
-                    .padding(PaddingValues(20.dp, 0.dp, 20.dp, 5.dp))
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                FormTextField(
-                    value = modelDestinationSearch ?: "",
-                    onValueChange = { screenModel.updateDestinationSearch(it) },
-                    label = "Where to?",
-                    icon = Icons.Outlined.AddLocationAlt,
-                    iconColor = Color.Red,
-                    modifier = Modifier.height(40.dp)
-                        .fillMaxWidth()
-                        .focusRequester(destinationFocusRequester)
-                        .onFocusChanged() {
-                            if (it.isFocused) {
-                                screenModel.updateSelectedSearchField(MapPointerStatus.DESTINATION)
-                            }
-                        }
-                )
-            }
+        UiState.Loading -> {
+            LoadingScreen(
+                backgroundColor = Color.White,
+                textColor = GoMaurisColors.surfaceTint,
+                indicatorColor = GoMaurisColors.surfaceBright,
+                contentAlignment = Alignment.TopCenter,
+                modifier = Modifier.padding(PaddingValues(top = 20.dp)),
+                trackColor = GoMaurisColors.secondary
+            )
+        }
 
-            Row(
-                modifier = Modifier.weight(1f)
-                    .padding(PaddingValues(20.dp, 0.dp, 20.dp, 5.dp))
-            ) {
-                when (val state = results) {
-                    is UiState.Error -> {
-                        Column(
-                            modifier = Modifier.fillMaxSize()
-                                .padding(PaddingValues(top = 40.dp)),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                "Something went wrong try again",
-                                fontSize = 14.sp,
-                                fontFamily = RobotoFontFamily,
-                                fontWeight = FontWeight.Light,
-                                color = GoMaurisColors.surfaceTint
+        is UiState.Success<List<DetailedPosition>> -> {
+            if (screenModel.isLocationChosen()) {
+                screenModel.swipeDisabled()
+                Row(
+                    modifier = Modifier.fillMaxSize()
+                        .padding(
+                            PaddingValues(
+                                top = LocalWindowInfo.current.containerSize.height.dp.div(
+                                    11f
+                                )
                             )
-                        }
-                    }
+                        ),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Button(
+                        onClick = {
 
-                    UiState.Idle -> {
-                        Column(
-                            modifier = Modifier.fillMaxSize()
-                                .padding(PaddingValues(top = 40.dp)),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                "Search to get started",
-                                fontSize = 14.sp,
-                                fontFamily = RobotoFontFamily,
-                                fontWeight = FontWeight.Light,
-                                color = GoMaurisColors.surfaceTint
-                            )
-                        }
-                    }
-
-                    UiState.Loading -> {
-                        LoadingScreen(
-                            backgroundColor = Color.White,
-                            textColor = GoMaurisColors.surfaceTint,
-                            indicatorColor = GoMaurisColors.surfaceBright,
-                            contentAlignment = Alignment.TopCenter,
-                            modifier = Modifier.padding(PaddingValues(top = 20.dp)),
-                            trackColor = GoMaurisColors.secondary
+                        },
+                        modifier = Modifier.width(150.dp),
+                        colors = ButtonColors(
+                            containerColor = GoMaurisColors.surfaceTint,
+                            contentColor = Color.White,
+                            disabledContentColor = GoMaurisColors.surfaceTint,
+                            disabledContainerColor = GoMaurisColors.surfaceTint,
+                        )
+                    )
+                    {
+                        Text(
+                            color = Color.White,
+                            text = "Cancel",
+                            fontStyle = FontStyle.Normal,
+                            fontWeight = FontWeight.Normal,
+                            fontSize = 14.sp,
+                            fontFamily = RobotoFontFamily
                         )
                     }
+                    Button(
+                        onClick = {
 
-                    is UiState.Success<List<DetailedPosition>> -> {
-                        LazyColumn(
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            items(state.data) { place ->
-                                LocationItem(
-                                    place.name,
-                                    place.displayName,
-                                    Modifier
-                                        .clickable {
-                                        screenModel.locationItemClick(place)
-                                        focusManager.clearFocus()
-                                    }
-                                )
-                            }
-                        }
+                        },
+                        modifier = Modifier.width(200.dp),
+                        colors = ButtonColors(
+                            containerColor = GoMaurisColors.surfaceBright,
+                            contentColor = Color.White,
+                            disabledContentColor = GoMaurisColors.surfaceBright,
+                            disabledContainerColor = GoMaurisColors.surfaceBright,
+                        )
+                    )
+                    {
+                        Text(
+                            color = Color.White,
+                            text = "Next",
+                            fontStyle = FontStyle.Normal,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            fontFamily = RobotoFontFamily
+                        )
+                    }
+                }
+            } else {
+                LazyColumn {
+                    items(state.data) { place ->
+                        LocationItem(
+                            place.name,
+                            place.displayName,
+                            Modifier
+                                .clickable {
+                                    screenModel.locationItemClick(place)
+                                    focusManager.clearFocus()
+                                }
+                        )
                     }
                 }
             }

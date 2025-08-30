@@ -41,8 +41,8 @@ class HomeTabViewModel(
         const val STYLE: String = "https://tiles.openfreemap.org/styles/liberty"
     }
 
-    private val _sheetState = MutableStateFlow(true)
-    val sheetState: StateFlow<Boolean> = _sheetState.asStateFlow()
+    private val _bottomSheetSwipeEnable = MutableStateFlow(true)
+    val bottomSheetSwipeEnable: StateFlow<Boolean> = _bottomSheetSwipeEnable.asStateFlow()
 
     private val _source = MutableStateFlow(DetailedPosition(null, null, null))
     val source: StateFlow<DetailedPosition> = _source.asStateFlow()
@@ -74,8 +74,8 @@ class HomeTabViewModel(
         observeDestinationSearch()
     }
 
-    fun toggleSheet() {
-        _sheetState.value = !_sheetState.value
+    fun swipeDisabled() {
+        _bottomSheetSwipeEnable.value = false
     }
 
     fun mapClick(position: Position) {
@@ -213,6 +213,7 @@ class HomeTabViewModel(
                 }
             }
         }
+        _locationResults.value = UiState.Success(emptyList())
     }
 
     fun fetchRouteFromOSRM() {
@@ -288,6 +289,11 @@ class HomeTabViewModel(
 
     fun updateSelectedSearchField(status: MapPointerStatus) {
         _selectedTextField.value = status
+    }
+
+    fun isLocationChosen(): Boolean {
+        return this._source.value.position != null
+                && this._destination.value.position != null
     }
 
     @OptIn(FlowPreview::class)
