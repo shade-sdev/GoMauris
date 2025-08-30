@@ -91,16 +91,11 @@ class HomeTabViewModel(
                 geoDecode(_destination, MapPointerStatus.DESTINATION)
                 fetchRouteFromOSRM()
                 _mapPointerStatus.value = MapPointerStatus.DESTINATION
+                _locationResults.value = UiState.Success(emptyList())
             }
 
             MapPointerStatus.DESTINATION -> {
-                _source.value = DetailedPosition(null, null, null)
-                _destination.value = DetailedPosition(null, null, null)
-                _sourceSearch.value = null
-                _destinationSearch.value = null
-                _locationResults.value = UiState.Idle
-                _routeCoordinates.value = emptyList()
-                _mapPointerStatus.value = MapPointerStatus.NONE
+                resetLocationChoice()
             }
 
             MapPointerStatus.DESTINATION_WITHOUT_SOURCE -> {
