@@ -406,9 +406,7 @@ fun MapBottomSheetBottomContent(
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Button(
-                        onClick = {
-
-                        },
+                        onClick = { screenModel.resetLocationChoice() },
                         modifier = Modifier.width(150.dp),
                         colors = ButtonColors(
                             containerColor = GoMaurisColors.surfaceTint,
@@ -431,7 +429,7 @@ fun MapBottomSheetBottomContent(
                         onClick = {
 
                         },
-                        modifier = Modifier.width(200.dp),
+                        modifier = Modifier.width(150.dp),
                         colors = ButtonColors(
                             containerColor = GoMaurisColors.surfaceBright,
                             contentColor = Color.White,

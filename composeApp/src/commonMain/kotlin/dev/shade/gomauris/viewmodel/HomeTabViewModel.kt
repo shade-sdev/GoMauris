@@ -296,6 +296,18 @@ class HomeTabViewModel(
                 && this._destination.value.position != null
     }
 
+    fun resetLocationChoice() {
+        _routeCoordinates.value = emptyList()
+        _source.value = DetailedPosition(null, null, null)
+        _destination.value = DetailedPosition(null, null, null)
+        _sourceSearch.value = null
+        _destinationSearch.value = null
+        _locationResults.value = UiState.Idle
+        _selectedTextField.value = MapPointerStatus.NONE
+        _mapPointerStatus.value = MapPointerStatus.NONE
+        _bottomSheetSwipeEnable.value = true
+    }
+
     @OptIn(FlowPreview::class)
     private fun observeSourceSearch() {
         viewModelScope.launch(dispatcher) {
