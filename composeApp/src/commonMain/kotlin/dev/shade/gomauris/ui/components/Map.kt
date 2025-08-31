@@ -20,7 +20,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonColors
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SheetState
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -41,6 +40,7 @@ import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import cafe.adriel.voyager.navigator.Navigator
+import cafe.adriel.voyager.transitions.SlideTransition
 import dev.sargunv.maplibrecompose.compose.ClickResult
 import dev.sargunv.maplibrecompose.compose.MaplibreMap
 import dev.sargunv.maplibrecompose.compose.layer.LineLayer
@@ -58,7 +58,7 @@ import dev.sargunv.maplibrecompose.expressions.dsl.image
 import dev.sargunv.maplibrecompose.expressions.dsl.offset
 import dev.sargunv.maplibrecompose.expressions.value.LineCap
 import dev.sargunv.maplibrecompose.expressions.value.LineJoin
-import dev.shade.gomauris.ui.screen.RideChooseTimeScreen
+import dev.shade.gomauris.ui.screen.RideChooseLocationScreen
 import dev.shade.gomauris.ui.theme.GoMaurisColors
 import dev.shade.gomauris.viewmodel.HomeTabViewModel
 import io.github.dellisd.spatialk.geojson.Feature
@@ -70,10 +70,12 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
 fun GoMaurisMapContainer(screenModel: HomeTabViewModel) {
+    val sheetValue by screenModel.sheetValue.collectAsState()
+
     val scaffoldState = rememberBottomSheetScaffoldState(
         bottomSheetState = SheetState(
             skipPartiallyExpanded = false,
-            initialValue = SheetValue.Expanded,
+            initialValue = sheetValue,
             density = LocalDensity.current,
             confirmValueChange = { true },
             skipHiddenState = false
@@ -90,7 +92,9 @@ fun GoMaurisMapContainer(screenModel: HomeTabViewModel) {
             sheetShape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp),
             sheetContainerColor = Color.White,
             sheetContent = {
-                Navigator(RideChooseTimeScreen())
+                Navigator(RideChooseLocationScreen(screenModel)) { navigator: Navigator ->
+                    SlideTransition(navigator)
+                }
             },
             sheetSwipeEnabled = swipeEnabled.value,
             sheetDragHandle = {

@@ -1,5 +1,7 @@
 package dev.shade.gomauris.viewmodel
 
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SheetValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import core.models.Result
@@ -43,6 +45,12 @@ class HomeTabViewModel(
 
     private val _bottomSheetSwipeEnable = MutableStateFlow(true)
     val bottomSheetSwipeEnable: StateFlow<Boolean> = _bottomSheetSwipeEnable.asStateFlow()
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    private val _sheetValue = MutableStateFlow(SheetValue.PartiallyExpanded)
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    val sheetValue: StateFlow<SheetValue> = _sheetValue
 
     private val _source = MutableStateFlow(DetailedPosition(null, null, null))
     val source: StateFlow<DetailedPosition> = _source.asStateFlow()
@@ -301,6 +309,11 @@ class HomeTabViewModel(
         _selectedTextField.value = MapPointerStatus.NONE
         _mapPointerStatus.value = MapPointerStatus.NONE
         _bottomSheetSwipeEnable.value = true
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    fun setSheetValue(value: SheetValue) {
+        _sheetValue.value = value
     }
 
     @OptIn(FlowPreview::class)
