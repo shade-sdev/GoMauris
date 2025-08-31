@@ -1,7 +1,6 @@
 package dev.shade.gomauris.ui.screen
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -57,9 +56,6 @@ import androidx.compose.ui.window.Popup
 import cafe.adriel.voyager.core.screen.Screen
 import dev.shade.gomauris.ui.theme.GoMaurisColors
 import dev.shade.gomauris.ui.theme.RobotoFontFamily
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.take
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 class RideChooseTimeScreen() : Screen {
@@ -168,20 +164,29 @@ class RideChooseTimeScreen() : Screen {
             }
 
             Row(
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
                     .fillMaxSize()
             ) {
                 val hours = (0..23).map { it.toString().padStart(2, '0') }
                 val minutes = (0..59).map { it.toString().padStart(2, '0') }
 
-                val hourState = rememberLazyListState(initialFirstVisibleItemIndex = 11)
-                val minuteState = rememberLazyListState(initialFirstVisibleItemIndex = 30)
+                val repeats = 1000
+                val startRepeats = repeats / 2
+                val initialHourPosition = startRepeats
+                val initialMinutePosition = startRepeats
 
-                var selectedHour by remember { mutableStateOf("12") }
-                var selectedMinute by remember { mutableStateOf("30") }
+                val hourState =
+                    rememberLazyListState(initialFirstVisibleItemIndex = initialHourPosition)
+                val minuteState =
+                    rememberLazyListState(initialFirstVisibleItemIndex = initialMinutePosition)
+
+                var selectedHour by remember { mutableStateOf("00") }
+                var selectedMinute by remember { mutableStateOf("00") }
 
                 Column(
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
                         .fillMaxSize()
                 ) {
                     PickerColumn(
@@ -189,13 +194,14 @@ class RideChooseTimeScreen() : Screen {
                         state = hourState,
                         onSelectionChanged = {
                             selectedHour = it
-                            println(selectedHour)
+                            println("Selected hour: $selectedHour")
                         }
                     )
                 }
 
                 Column(
-                    modifier = Modifier.wrapContentWidth()
+                    modifier = Modifier
+                        .wrapContentWidth()
                         .fillMaxHeight(),
                     verticalArrangement = Arrangement.Center
                 ) {
@@ -210,7 +216,8 @@ class RideChooseTimeScreen() : Screen {
                 }
 
                 Column(
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
                         .fillMaxSize()
                 ) {
                     PickerColumn(
@@ -218,7 +225,7 @@ class RideChooseTimeScreen() : Screen {
                         state = minuteState,
                         onSelectionChanged = {
                             selectedMinute = it
-                            println(selectedMinute)
+                            println("Selected minute: $selectedMinute")
                         }
                     )
                 }
@@ -351,15 +358,26 @@ fun PickerColumn(
     val flingBehavior = rememberSnapFlingBehavior(lazyListState = state)
     val itemHeight = 50.dp
     val itemHeightPx = with(LocalDensity.current) { itemHeight.toPx() }
-    var hasPerformedInitialSnap by remember { mutableStateOf(false) }
 
-    // Track the currently selected item
+    val repeats = 1000
+    val infiniteItems = remember(items) {
+        List(repeats) { index ->
+            items[index % items.size]
+        }
+    }
+
     LaunchedEffect(state) {
+        state.scroll {
+            with(flingBehavior) {
+                performFling(10f)
+            }
+        }
+    }
+
+    LaunchedEffect(state, items) {
         snapshotFlow {
             if (state.layoutInfo.viewportSize.height > 0 && state.layoutInfo.visibleItemsInfo.isNotEmpty()) {
                 val viewportCenter = state.layoutInfo.viewportSize.height / 2f
-
-                // Find the item closest to center (excluding spacer at index 0)
                 val centerItem = state.layoutInfo.visibleItemsInfo
                     .filter { it.index > 0 }
                     .minByOrNull { itemInfo ->
@@ -368,10 +386,8 @@ fun PickerColumn(
                     }
 
                 centerItem?.let {
-                    val actualIndex = it.index - 1 // -1 because spacer is at index 0
-                    if (actualIndex in items.indices) {
-                        items[actualIndex]
-                    } else null
+                    val actualIndex = (it.index - 1) % items.size
+                    items[actualIndex]
                 }
             } else null
         }.collect { selectedItem ->
@@ -379,33 +395,6 @@ fun PickerColumn(
         }
     }
 
-    LaunchedEffect(state) {
-        snapshotFlow {
-            state.layoutInfo.totalItemsCount > 0 &&
-                    state.layoutInfo.viewportSize.height > 0 &&
-                    state.layoutInfo.visibleItemsInfo.isNotEmpty()
-        }
-            .filter { it && !hasPerformedInitialSnap }
-            .take(1)
-            .collect {
-                delay(100)
-
-                val viewportCenter = state.layoutInfo.viewportSize.height / 2f
-                val targetItemIndex = state.firstVisibleItemIndex + 1
-                val targetItem =
-                    state.layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetItemIndex }
-
-                targetItem?.let { item ->
-                    val itemCenter = item.offset + item.size / 2f
-                    val adjustment = viewportCenter - itemCenter - 25f
-                    state.animateScrollBy(adjustment)
-                }
-
-                hasPerformedInitialSnap = true
-            }
-    }
-
-    // ... rest of your Box and LazyColumn code stays the same
     Box(modifier = Modifier.fillMaxHeight()) {
         LazyColumn(
             state = state,
@@ -417,14 +406,16 @@ fun PickerColumn(
             item {
                 val viewportHeight = state.layoutInfo.viewportSize.height
                 val spacerHeight = if (viewportHeight > 0) {
-                    with(LocalDensity.current) { (viewportHeight / 2).toDp() - itemHeight / 2 }
+                    with(LocalDensity.current) {
+                        (viewportHeight / 2).toDp() - itemHeight / 2
+                    }
                 } else {
                     200.dp
                 }
                 Spacer(Modifier.height(spacerHeight))
             }
 
-            itemsIndexed(items) { index, item ->
+            itemsIndexed(infiniteItems) { index, item ->
                 val viewportHeight = state.layoutInfo.viewportSize.height
                 val viewportCenter = viewportHeight / 2f
                 val itemInfo =
@@ -442,10 +433,10 @@ fun PickerColumn(
                 val color = Color.Black.copy(alpha = (1f - distanceFactor).coerceIn(0.3f, 1f))
 
                 Text(
+                    color = if (distanceFactor < 0.5f) GoMaurisColors.surfaceBright else color,
                     text = item,
                     fontSize = fontSize,
                     fontWeight = if (distanceFactor < 0.5f) FontWeight.Bold else FontWeight.Medium,
-                    color = color,
                     modifier = Modifier
                         .height(itemHeight)
                         .wrapContentHeight(align = Alignment.CenterVertically)
@@ -455,7 +446,9 @@ fun PickerColumn(
             item {
                 val viewportHeight = state.layoutInfo.viewportSize.height
                 val spacerHeight = if (viewportHeight > 0) {
-                    with(LocalDensity.current) { (viewportHeight / 2).toDp() - itemHeight / 2 }
+                    with(LocalDensity.current) {
+                        (viewportHeight / 2).toDp() - itemHeight / 2
+                    }
                 } else {
                     200.dp
                 }
@@ -466,43 +459,19 @@ fun PickerColumn(
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(y = -itemHeight / 2)
+                .offset(y = -itemHeight / 1.5f)
                 .fillMaxWidth()
                 .height(1.dp)
-                .background(Color.Gray)
+                .background(GoMaurisColors.surfaceBright)
         )
-
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(y = itemHeight / 2)
+                .offset(y = itemHeight / 1.5f)
                 .fillMaxWidth()
                 .height(1.dp)
-                .background(Color.Gray)
+                .background(GoMaurisColors.surfaceBright)
         )
     }
-}
 
-// Method 2: Create a helper function to get selected value from state
-@Composable
-fun getSelectedValue(items: List<String>, state: LazyListState): String? {
-    return remember(state.layoutInfo) {
-        if (state.layoutInfo.viewportSize.height > 0 && state.layoutInfo.visibleItemsInfo.isNotEmpty()) {
-            val viewportCenter = state.layoutInfo.viewportSize.height / 2f
-
-            val centerItem = state.layoutInfo.visibleItemsInfo
-                .filter { it.index > 0 } // Exclude spacer
-                .minByOrNull { itemInfo ->
-                    val itemCenter = itemInfo.offset + itemInfo.size / 2f
-                    kotlin.math.abs(itemCenter - viewportCenter)
-                }
-
-            centerItem?.let {
-                val actualIndex = it.index - 1 // -1 because spacer is at index 0
-                if (actualIndex in items.indices) {
-                    items[actualIndex]
-                } else null
-            }
-        } else null
-    }
 }
