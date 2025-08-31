@@ -22,7 +22,9 @@ val GoMaurisColors = lightColorScheme(
     outline = Color(0xFFECECEC), // Border
     scrim = Color(0xFF222222), // Black
     surfaceBright = Color(0xFF06C961), // Selected
-    surfaceTint = Color(0x0FFBABABA) // Icon lighter
+    surfaceTint = Color(0xFFBABABA), // Icon lighter
+    surfaceVariant = Color(0xFFF5F6F5), // UnSelected
+    onSurfaceVariant = Color(0xFFECFAF2) // Light Green
 )
 
 val selectionColors = TextSelectionColors(

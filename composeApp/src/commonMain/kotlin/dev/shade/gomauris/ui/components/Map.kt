@@ -58,7 +58,7 @@ import dev.sargunv.maplibrecompose.expressions.dsl.image
 import dev.sargunv.maplibrecompose.expressions.dsl.offset
 import dev.sargunv.maplibrecompose.expressions.value.LineCap
 import dev.sargunv.maplibrecompose.expressions.value.LineJoin
-import dev.shade.gomauris.ui.screen.RideChooseLocationScreen
+import dev.shade.gomauris.ui.screen.RideChooseTimeScreen
 import dev.shade.gomauris.ui.theme.GoMaurisColors
 import dev.shade.gomauris.viewmodel.HomeTabViewModel
 import io.github.dellisd.spatialk.geojson.Feature
@@ -73,7 +73,7 @@ fun GoMaurisMapContainer(screenModel: HomeTabViewModel) {
     val scaffoldState = rememberBottomSheetScaffoldState(
         bottomSheetState = SheetState(
             skipPartiallyExpanded = false,
-            initialValue = SheetValue.PartiallyExpanded,
+            initialValue = SheetValue.Expanded,
             density = LocalDensity.current,
             confirmValueChange = { true },
             skipHiddenState = false
@@ -90,7 +90,7 @@ fun GoMaurisMapContainer(screenModel: HomeTabViewModel) {
             sheetShape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp),
             sheetContainerColor = Color.White,
             sheetContent = {
-                Navigator(RideChooseLocationScreen(screenModel))
+                Navigator(RideChooseTimeScreen())
             },
             sheetSwipeEnabled = swipeEnabled.value,
             sheetDragHandle = {
@@ -106,6 +106,7 @@ fun GoMaurisMapContainer(screenModel: HomeTabViewModel) {
                 )
             }
         ) { paddingValues ->
+
             Box(
                 modifier = Modifier.fillMaxSize()
             )
@@ -114,21 +115,19 @@ fun GoMaurisMapContainer(screenModel: HomeTabViewModel) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(16.dp)
-//                        .pointerInput(Unit) {
-//                            detectTapGestures(onTap = {
-//                                if (scaffoldState.bottomSheetState.isVisible) {
-//                                    scope.launch {
-//                                        scaffoldState.bottomSheetState.hide()
-//                                    }
-//                                }
-//                            })
-//                        }
-                    ,
+                        .padding(16.dp),
                     contentAlignment = Alignment.TopStart
                 ) {
                     IconButton(
-                        onClick = { scope.launch { scaffoldState.bottomSheetState.partialExpand() } },
+                        onClick = {
+                            scope.launch {
+                                if (scaffoldState.bottomSheetState.isVisible) {
+                                    scaffoldState.bottomSheetState.hide()
+                                } else {
+                                    scaffoldState.bottomSheetState.partialExpand()
+                                }
+                            }
+                        },
                         colors = IconButtonColors(
                             containerColor = GoMaurisColors.tertiary,
                             contentColor = Color.White,
