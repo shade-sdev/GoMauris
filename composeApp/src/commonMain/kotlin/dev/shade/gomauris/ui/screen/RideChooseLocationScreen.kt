@@ -261,7 +261,7 @@ fun ShowActionButton(screenModel: HomeTabViewModel) {
         Button(
             onClick = {
                 screenModel.setSheetValue(SheetValue.Expanded)
-                bottomSheetNavigator?.push(RideChooseTimeScreen())
+                bottomSheetNavigator?.push(RideChooseTimeScreen(screenModel))
             },
             modifier = Modifier.width(150.dp),
             colors = ButtonColors(

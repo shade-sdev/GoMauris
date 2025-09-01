@@ -21,18 +21,17 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDefaults
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,23 +42,47 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Popup
 import cafe.adriel.voyager.core.screen.Screen
 import dev.shade.gomauris.ui.theme.GoMaurisColors
 import dev.shade.gomauris.ui.theme.RobotoFontFamily
+import dev.shade.gomauris.viewmodel.HomeTabViewModel
+import kotlinx.datetime.DatePeriod
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.format
+import kotlinx.datetime.format.Padding
+import kotlinx.datetime.format.char
+import kotlinx.datetime.plus
+import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.todayIn
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
-class RideChooseTimeScreen() : Screen {
+class RideChooseTimeScreen(screenModal: HomeTabViewModel) : Screen {
 
+    companion object {
+        val dateFormat = LocalDate.Format {
+            day(padding = Padding.ZERO)
+            char('-')
+            monthNumber(Padding.ZERO)
+            char('-')
+            year()
+        }
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class, ExperimentalTime::class)
     @Composable
     @Preview
     override fun Content() {
@@ -99,66 +122,56 @@ class RideChooseTimeScreen() : Screen {
                 horizontalArrangement = Arrangement.spacedBy(1.dp)
             ) {
                 var selectedButton by remember { mutableStateOf(0) }
+                var showDatePicker by remember { mutableStateOf(false) }
+                var selectedDate by remember {
+                    mutableStateOf<LocalDate?>(
+                        Clock.System.todayIn(
+                            TimeZone.currentSystemDefault()
+                        )
+                    )
+                }
 
-                Button(
-                    shape = RoundedCornerShape(size = 4.dp),
-                    onClick = { selectedButton = 0 },
+                DateButton(
+                    text = "Today",
+                    isSelected = selectedButton == 0,
+                    onClick = {
+                        selectedButton = 0
+                        selectedDate = Clock.System.todayIn(TimeZone.currentSystemDefault())
+                    },
                     modifier = Modifier.weight(1f)
-                        .height(35.dp),
-                    colors = ButtonColors(
-                        containerColor = if (selectedButton == 0) GoMaurisColors.surfaceBright else GoMaurisColors.surfaceVariant,
-                        contentColor = if (selectedButton == 0) Color.White else Color.Black,
-                        disabledContentColor = GoMaurisColors.surfaceVariant,
-                        disabledContainerColor = GoMaurisColors.surfaceVariant,
-                    )
                 )
-                {
-                    Text(
-                        text = "Today",
-                        fontStyle = FontStyle.Normal,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
-                        fontFamily = RobotoFontFamily
-                    )
-                }
-                Button(
-                    shape = RoundedCornerShape(size = 4.dp),
-                    onClick = { selectedButton = 1 },
-                    modifier = Modifier.weight(1f).height(35.dp),
-                    colors = ButtonColors(
-                        containerColor = if (selectedButton == 1) GoMaurisColors.surfaceBright else GoMaurisColors.surfaceVariant,
-                        contentColor = if (selectedButton == 1) Color.White else Color.Black,
-                        disabledContentColor = GoMaurisColors.surfaceVariant,
-                        disabledContainerColor = GoMaurisColors.surfaceVariant,
-                    )
+
+                DateButton(
+                    text = "Tomorrow",
+                    isSelected = selectedButton == 1,
+                    onClick = {
+                        selectedButton = 1
+                        selectedDate = Clock.System.todayIn(TimeZone.currentSystemDefault())
+                            .plus(DatePeriod(days = 1))
+                    },
+                    modifier = Modifier.weight(1f)
                 )
-                {
-                    Text(
-                        text = "Tomorrow",
-                        fontStyle = FontStyle.Normal,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
-                        fontFamily = RobotoFontFamily
-                    )
-                }
-                Button(
-                    shape = RoundedCornerShape(size = 4.dp),
-                    onClick = { selectedButton = 2 },
-                    modifier = Modifier.weight(1f).height(35.dp),
-                    colors = ButtonColors(
-                        containerColor = if (selectedButton == 2) GoMaurisColors.surfaceBright else GoMaurisColors.surfaceVariant,
-                        contentColor = if (selectedButton == 2) Color.White else Color.Black,
-                        disabledContentColor = GoMaurisColors.surfaceVariant,
-                        disabledContainerColor = GoMaurisColors.surfaceVariant,
-                    )
+
+                DateButton(
+                    text = selectedDate?.format(dateFormat) ?: "Select Date",
+                    isSelected = selectedButton == 2,
+                    onClick = {
+                        selectedButton = 2
+                        showDatePicker = true
+                    },
+                    modifier = Modifier.weight(1f)
                 )
-                {
-                    Text(
-                        text = "Select Date",
-                        fontStyle = FontStyle.Normal,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
-                        fontFamily = RobotoFontFamily
+
+                if (showDatePicker) {
+                    DatePickerDialog(
+                        onDateSelected = { date ->
+                            selectedDate = date
+                            selectedButton = 2
+                            showDatePicker = false
+                        },
+                        onDismiss = {
+                            showDatePicker = false
+                        }
                     )
                 }
             }
@@ -195,6 +208,14 @@ class RideChooseTimeScreen() : Screen {
                         onSelectionChanged = {
                             selectedHour = it
                             println("Selected hour: $selectedHour")
+                            println(
+                                "Selected time: ${
+                                    LocalTime(
+                                        hour = selectedHour.toInt(),
+                                        minute = selectedMinute.toInt()
+                                    )
+                                }"
+                            )
                         }
                     )
                 }
@@ -226,6 +247,14 @@ class RideChooseTimeScreen() : Screen {
                         onSelectionChanged = {
                             selectedMinute = it
                             println("Selected minute: $selectedMinute")
+                            println(
+                                "Selected time: ${
+                                    LocalTime(
+                                        hour = selectedHour.toInt(),
+                                        minute = selectedMinute.toInt()
+                                    )
+                                }"
+                            )
                         }
                     )
                 }
@@ -297,57 +326,40 @@ class RideChooseTimeScreen() : Screen {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DatePickerDocked() {
-    var showDatePicker by remember { mutableStateOf(false) }
-    val datePickerState = rememberDatePickerState()
-    val selectedDate = datePickerState.selectedDateMillis.toString()
-
-    Box(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        OutlinedTextField(
-            value = selectedDate,
-            onValueChange = { },
-            label = { Text("DOB") },
-            readOnly = true,
-            trailingIcon = {
-                IconButton(onClick = { showDatePicker = !showDatePicker }) {
-                    Icon(
-                        imageVector = Icons.Default.DateRange,
-                        contentDescription = "Select date"
-                    )
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(64.dp)
-        )
-
-        if (showDatePicker) {
-            Popup(
-                onDismissRequest = { showDatePicker = false },
-                alignment = Alignment.TopStart
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .offset(y = 64.dp)
-                        .shadow(elevation = 4.dp)
-                        .background(MaterialTheme.colorScheme.surface)
-                        .padding(16.dp)
-                ) {
-                    DatePicker(
-                        state = datePickerState,
-                        showModeToggle = false
-                    )
-                }
-            }
+private fun DateButton(
+    text: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Button(
+        shape = RoundedCornerShape(size = 4.dp),
+        onClick = onClick,
+        modifier = modifier.height(35.dp),
+        colors = ButtonColors(
+            containerColor = if (isSelected) GoMaurisColors.surfaceBright else GoMaurisColors.surfaceVariant,
+            contentColor = if (isSelected) Color.White else Color.Black,
+            disabledContentColor = GoMaurisColors.surfaceVariant,
+            disabledContainerColor = GoMaurisColors.surfaceVariant,
+        ),
+        elevation = if (isSelected) {
+            ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+        } else {
+            ButtonDefaults.buttonElevation(defaultElevation = 1.dp)
         }
+    ) {
+        Text(
+            text = text,
+            fontStyle = FontStyle.Normal,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp,
+            fontFamily = RobotoFontFamily,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
-
 
 @Composable
 fun PickerColumn(
@@ -474,4 +486,88 @@ fun PickerColumn(
         )
     }
 
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalTime::class)
+@Composable
+fun DatePickerDialog(
+    onDateSelected: (LocalDate?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val datePickerState = rememberDatePickerState(
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+                val selectedDate = Instant.fromEpochMilliseconds(utcTimeMillis)
+                    .toLocalDateTime(TimeZone.currentSystemDefault())
+                    .date
+
+                return selectedDate >= today
+            }
+        }
+    )
+
+    DatePickerDialog(
+        colors = DatePickerDefaults.colors(
+            containerColor = GoMaurisColors.onSurfaceVariant,
+        ),
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            Button(
+                onClick = {
+                    val selectedDate = datePickerState.selectedDateMillis?.let { millis ->
+                        Instant.fromEpochMilliseconds(millis)
+                            .toLocalDateTime(TimeZone.currentSystemDefault())
+                            .date
+                    }
+                    onDateSelected(selectedDate)
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = GoMaurisColors.surfaceBright,
+                    contentColor = Color.White
+                )
+            ) {
+                Text("OK", fontFamily = RobotoFontFamily)
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColors(
+                    containerColor = GoMaurisColors.onSurfaceVariant,
+                    contentColor = GoMaurisColors.surfaceBright
+                )
+            ) {
+                Text("Cancel", fontFamily = RobotoFontFamily)
+            }
+        }
+    ) {
+        DatePicker(
+            state = datePickerState,
+            colors = DatePickerDefaults.colors(
+                containerColor = Color.Transparent,
+                titleContentColor = GoMaurisColors.scrim,
+                headlineContentColor = GoMaurisColors.scrim,
+                weekdayContentColor = GoMaurisColors.scrim,
+                subheadContentColor = GoMaurisColors.scrim,
+                navigationContentColor = GoMaurisColors.scrim,
+                yearContentColor = GoMaurisColors.scrim,
+                disabledYearContentColor = GoMaurisColors.outline,
+                currentYearContentColor = GoMaurisColors.surfaceBright,
+                selectedYearContentColor = Color.White,
+                selectedYearContainerColor = GoMaurisColors.surfaceBright,
+                dayContentColor = GoMaurisColors.scrim,
+                disabledDayContentColor = GoMaurisColors.tertiary,
+                selectedDayContentColor = Color.White,
+                disabledSelectedDayContentColor = GoMaurisColors.outline,
+                selectedDayContainerColor = GoMaurisColors.surfaceBright,
+                disabledSelectedDayContainerColor = GoMaurisColors.outline,
+                todayContentColor = GoMaurisColors.surfaceBright,
+                todayDateBorderColor = GoMaurisColors.surfaceBright,
+                dayInSelectionRangeContentColor = GoMaurisColors.scrim,
+                dayInSelectionRangeContainerColor = GoMaurisColors.surfaceBright.copy(alpha = 0.3f),
+                dividerColor = GoMaurisColors.outline.copy(alpha = 0.3f)
+            )
+        )
+    }
 }
