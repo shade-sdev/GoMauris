@@ -28,11 +28,17 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.double
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 class HomeTabViewModel(
     private val mapService: MapService,
@@ -73,6 +79,19 @@ class HomeTabViewModel(
     val destinationSearch: StateFlow<String?> = _destinationSearch.asStateFlow()
 
     private val _selectedTextField = MutableStateFlow(MapPointerStatus.NONE)
+
+    private val _timeHours = MutableStateFlow("00")
+
+    private val _timeMinutes = MutableStateFlow("00")
+
+    @OptIn(ExperimentalTime::class)
+    private val _selectedDate = MutableStateFlow(
+        Clock.System.todayIn(
+            TimeZone.currentSystemDefault()
+        )
+    )
+
+    val selectedDate: StateFlow<LocalDate> = _selectedDate.asStateFlow()
 
     private val sourceSearchChannel = Channel<String>(Channel.UNLIMITED)
     private val destinationSearchChannel = Channel<String>(Channel.UNLIMITED)
@@ -297,6 +316,27 @@ class HomeTabViewModel(
     fun isLocationChosen(): Boolean {
         return this._source.value.position != null
                 && this._destination.value.position != null
+    }
+
+    fun updatetimeHours(hours: String) {
+        _timeHours.value = hours
+    }
+
+    fun updatetimeMinute(minutes: String) {
+        _timeMinutes.value = minutes
+    }
+
+    fun updateSelectedDate(date: LocalDate?) {
+        if (date != null) {
+            _selectedDate.value = date
+        }
+    }
+
+    fun toLocalTime(): LocalTime {
+        return LocalTime(
+            hour = _timeHours.value.toInt(),
+            minute = _timeMinutes.value.toInt()
+        )
     }
 
     fun resetLocationChoice() {

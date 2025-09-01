@@ -35,6 +35,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,7 +58,6 @@ import dev.shade.gomauris.ui.theme.RobotoFontFamily
 import dev.shade.gomauris.viewmodel.HomeTabViewModel
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.format
 import kotlinx.datetime.format.Padding
@@ -70,7 +70,7 @@ import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
-class RideChooseTimeScreen(screenModal: HomeTabViewModel) : Screen {
+class RideChooseTimeScreen(private val screenModal: HomeTabViewModel) : Screen {
 
     companion object {
         val dateFormat = LocalDate.Format {
@@ -123,20 +123,14 @@ class RideChooseTimeScreen(screenModal: HomeTabViewModel) : Screen {
             ) {
                 var selectedButton by remember { mutableStateOf(0) }
                 var showDatePicker by remember { mutableStateOf(false) }
-                var selectedDate by remember {
-                    mutableStateOf<LocalDate?>(
-                        Clock.System.todayIn(
-                            TimeZone.currentSystemDefault()
-                        )
-                    )
-                }
+                val selectedDate by screenModal.selectedDate.collectAsState()
 
                 DateButton(
                     text = "Today",
                     isSelected = selectedButton == 0,
                     onClick = {
                         selectedButton = 0
-                        selectedDate = Clock.System.todayIn(TimeZone.currentSystemDefault())
+                        screenModal.updateSelectedDate(Clock.System.todayIn(TimeZone.currentSystemDefault()))
                     },
                     modifier = Modifier.weight(1f)
                 )
@@ -146,14 +140,14 @@ class RideChooseTimeScreen(screenModal: HomeTabViewModel) : Screen {
                     isSelected = selectedButton == 1,
                     onClick = {
                         selectedButton = 1
-                        selectedDate = Clock.System.todayIn(TimeZone.currentSystemDefault())
-                            .plus(DatePeriod(days = 1))
+                        screenModal.updateSelectedDate(Clock.System.todayIn(TimeZone.currentSystemDefault())
+                            .plus(DatePeriod(days = 1)))
                     },
                     modifier = Modifier.weight(1f)
                 )
 
                 DateButton(
-                    text = selectedDate?.format(dateFormat) ?: "Select Date",
+                    text = selectedDate.format(dateFormat),
                     isSelected = selectedButton == 2,
                     onClick = {
                         selectedButton = 2
@@ -165,7 +159,7 @@ class RideChooseTimeScreen(screenModal: HomeTabViewModel) : Screen {
                 if (showDatePicker) {
                     DatePickerDialog(
                         onDateSelected = { date ->
-                            selectedDate = date
+                            screenModal.updateSelectedDate(date)
                             selectedButton = 2
                             showDatePicker = false
                         },
@@ -194,9 +188,6 @@ class RideChooseTimeScreen(screenModal: HomeTabViewModel) : Screen {
                 val minuteState =
                     rememberLazyListState(initialFirstVisibleItemIndex = initialMinutePosition)
 
-                var selectedHour by remember { mutableStateOf("00") }
-                var selectedMinute by remember { mutableStateOf("00") }
-
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -206,15 +197,9 @@ class RideChooseTimeScreen(screenModal: HomeTabViewModel) : Screen {
                         items = hours,
                         state = hourState,
                         onSelectionChanged = {
-                            selectedHour = it
-                            println("Selected hour: $selectedHour")
+                            screenModal.updatetimeHours(it)
                             println(
-                                "Selected time: ${
-                                    LocalTime(
-                                        hour = selectedHour.toInt(),
-                                        minute = selectedMinute.toInt()
-                                    )
-                                }"
+                                "Selected time: ${screenModal.toLocalTime()}"
                             )
                         }
                     )
@@ -245,15 +230,9 @@ class RideChooseTimeScreen(screenModal: HomeTabViewModel) : Screen {
                         items = minutes,
                         state = minuteState,
                         onSelectionChanged = {
-                            selectedMinute = it
-                            println("Selected minute: $selectedMinute")
+                            screenModal.updatetimeMinute(it)
                             println(
-                                "Selected time: ${
-                                    LocalTime(
-                                        hour = selectedHour.toInt(),
-                                        minute = selectedMinute.toInt()
-                                    )
-                                }"
+                                "Selected time: ${screenModal.toLocalTime()}"
                             )
                         }
                     )
